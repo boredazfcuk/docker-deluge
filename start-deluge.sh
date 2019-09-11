@@ -20,10 +20,10 @@ Initialise(){
 
 CreateGroup(){
    if [ -z "$(getent group "${GROUP}" | cut -d: -f3)" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Group ID available, creating group"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Group ID available, creating group"
       addgroup -g "${GID}" "${GROUP}"
    elif [ ! "$(getent group "${GROUP}" | cut -d: -f3)" = "${GID}" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR:   Group GID mismatch - exiting"
+      echo "$(date '+%H:%M:%S') [ERROR   ][deluge.launcher.docker        :${PID}] Group GID mismatch - exiting"
       exit 1
    fi
 }
@@ -64,5 +64,3 @@ Initialise
 CreateGroup
 CreateUser
 LaunchDeluge
-
-
