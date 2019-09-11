@@ -19,12 +19,12 @@ echo "$(date '+%d/%m/%Y - %H:%M:%S') | Add group, user and directories" && \
    mkdir -p "${APPBASE}" "${N2MBASE}" && \
 echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install build dependencies" && \
    apk add --no-cache --no-progress --virtual=build-deps ${BUILDDEPENDENCIES} && \
-   apk --repository "http://dl-cdn.alpinelinux.org/alpine/edge/testing" add --no-cache --no-progress py3-libtorrent-rasterbar && \
 echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install Deluge" && \
    pip3 install --no-cache-dir --upgrade pip && \
    pip3 install --no-cache-dir deluge geoip && \
 echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install Deluge runtime dependencies" && \
    apk add --no-cache --no-progress ${RUNTIMEDEPENDENCIES} && \
+   apk --repository "http://dl-cdn.alpinelinux.org/alpine/edge/testing" add --no-cache --no-progress py3-libtorrent-rasterbar && \
 echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install ${N2MREPO}" && \
    cd "${N2MBASE}" && \
    git clone -b master "https://github.com/${N2MREPO}.git" "${N2MBASE}" && \
