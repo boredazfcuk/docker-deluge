@@ -4,12 +4,9 @@ ENV APPBASE="/Deluge" \
    BUILDDEPENDENCIES="curl gcc geoip-dev openssl-dev libffi-dev musl-dev python3-dev zlib-dev jpeg-dev" \
    RUNTIMEDEPENDENCIES="python3 tzdata py3-six py3-openssl geoip git" \
    CONFIGDIR="/config" \
-   N2MBASE="/nzbToMedia" \
-   N2MREPO="clinton-hall/nzbToMedia" \
    PYTHON_EGG_CACHE="/config/.pythoneggcache" \
-   LOGDIR="/tmp" \
-   LOG_DAEMON="deluge-daemon.log" \
-   LOG_WEB="deluge-web.log"
+   N2MBASE="/nzbToMedia" \
+   N2MREPO="clinton-hall/nzbToMedia"
 
 COPY start-deluge.sh /usr/local/bin/start-deluge.sh
 

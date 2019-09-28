@@ -5,6 +5,9 @@ Initialise(){
    PAD="    "
    PID=$$
    PID="${PID:0:4}${PAD:0:$((4 - ${#PID}))}"
+   LOGDIR="/tmp" \
+   LOG_DAEMON="deluge-daemon.log" \
+   LOG_WEB="deluge-web.log"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ***** Starting Deluge *****"
    if [ ! -d "${PYTHON_EGG_CACHE}" ]; then mkdir "${PYTHON_EGG_CACHE}"; fi
    if [ -f "${LOGDIR}/${LOG_DAEMON}" ]; then rm "${LOGDIR}/${LOG_DAEMON}"; ln -s /dev/stdout "${LOGDIR}/${LOG_DAEMON}"; fi
@@ -48,6 +51,8 @@ SetOwnerAndGroup(){
    find "${PYTHON_EGG_CACHE}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
    find "${CONFIGDIR}" ! -user "${USER}" -exec chown "${USER}" {} \;
    find "${CONFIGDIR}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
+   find "${LOGDIR}" -name "${LOG_DAEMON}" ! -user "${USER}" -exec chown "${USER}" {} \;
+   find "${LOGDIR}" -name "${LOG_WEB}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
 }
 
 LaunchDeluge(){
@@ -63,4 +68,5 @@ LaunchDeluge(){
 Initialise
 CreateGroup
 CreateUser
+SetOwnerAndGroup
 LaunchDeluge
