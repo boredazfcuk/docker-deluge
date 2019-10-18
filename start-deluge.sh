@@ -5,20 +5,24 @@ Initialise(){
    PAD="    "
    PID=$$
    PID="${PID:0:4}${PAD:0:$((4 - ${#PID}))}"
-   LOGDIR="/tmp" \
-   LOG_DAEMON="deluge-daemon.log" \
+   LOGDIR="/tmp/deluge"
+   LOG_DAEMON="deluge-daemon.log"
    LOG_WEB="deluge-web.log"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ***** Starting Deluge *****"
+   DELUGEVERSION="$(usr/bin/deluge --version | grep deluge | awk '{print $2}')"
+   PYTHONMAJOR="$(python3 --version | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}')"
+   PACKAGES="/usr/lib/python${PYTHONMAJOR}/site-packages"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ***** Starting Deluge v${DELUGEVERSION} *****"
+   if [ ! -d "${LOGDIR}" ]; then mkdir -p "${LOGDIR}"; fi
    if [ ! -d "${PYTHON_EGG_CACHE}" ]; then mkdir "${PYTHON_EGG_CACHE}"; fi
-   if [ -f "${LOGDIR}/${LOG_DAEMON}" ]; then rm "${LOGDIR}/${LOG_DAEMON}"; ln -s /dev/stdout "${LOGDIR}/${LOG_DAEMON}"; fi
-   if [ -f "${LOGDIR}/${LOG_WEB}" ]; then rm "${LOGDIR}/${LOG_WEB}"; ln -s /dev/stdout "${LOGDIR}/${LOG_WEB}"; fi
+   if [ ! -f "${LOGDIR}/${LOG_DAEMON}" ]; then touch "${LOGDIR}/${LOG_DAEMON}"; fi
+   if [ ! -f "${LOGDIR}/${LOG_WEB}" ]; then touch "${LOGDIR}/${LOG_WEB}"; fi
    if [ -z "${USER}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] User name not set, defaulting to 'user'"; USER="user"; fi
    if [ -z "${UID}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] User ID not set, defaulting to '1000'"; UID="1000"; fi
    if [ -z "${GROUP}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Group name not set, defaulting to 'group'"; GROUP="group"; fi
    if [ -z "${GID}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Group ID not set, defaulting to '1000'"; GID="1000"; fi
+   if [ ! -z  "$(ip ad | grep tun. )" ]; then VPNIP="$(ip ad | grep tun. | grep inet | awk '{print $2}')"; echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] VPN tunnel adapter detected, binding daemon to ${VPNIP}"; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local user: ${USER}:${UID}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local group: ${GROUP}:${GID}"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Deluge application directory: ${APPBASE}"
 }
 
 CreateGroup(){
@@ -34,7 +38,7 @@ CreateGroup(){
 CreateUser(){
    if [ -z "$(getent passwd "${USER}" | cut -d: -f3)" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] User ID available, creating user"
-      adduser -s /bin/ash -H -D -G "${GROUP}" -u "${UID}" "${USER}"
+      adduser -s /bin/ash -D -G "${GROUP}" -u "${UID}" "${USER}"
    elif [ ! "$(getent passwd "${USER}" | cut -d: -f3)" = "${UID}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] User ID already in use - exiting"
       exit 1
@@ -43,24 +47,36 @@ CreateUser(){
 
 SetOwnerAndGroup(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Correct owner and group of application files, if required"
-   find "${APPBASE}" ! -user "${USER}" -exec chown "${USER}" {} \;
-   find "${APPBASE}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
    find "${N2MBASE}" ! -user "${USER}" -exec chown "${USER}" {} \;
    find "${N2MBASE}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
    find "${PYTHON_EGG_CACHE}" ! -user "${USER}" -exec chown "${USER}" {} \;
    find "${PYTHON_EGG_CACHE}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
    find "${CONFIGDIR}" ! -user "${USER}" -exec chown "${USER}" {} \;
    find "${CONFIGDIR}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
-   find "${LOGDIR}" -name "${LOG_DAEMON}" ! -user "${USER}" -exec chown "${USER}" {} \;
-   find "${LOGDIR}" -name "${LOG_WEB}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
+   find "${LOGDIR}" ! -user "${USER}" -exec chown "${USER}" {} \;
+   find "${LOGDIR}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
+   find "${PACKAGES}" ! -user "${USER}" -exec chown "${USER}" {} \;
+   find "${PACKAGES}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
+}
+
+BindIP(){
+   if [ ! -z "${VPNIP}" ]; then
+      VPNADAPTER="$(ip ad | grep tun. | grep inet | awk '{print $7}')"
+      sed -i "s/\"listen_interface\": .*,/\"listen_interface\": \"${VPNIP}\",/" "${CONFIGDIR}/core.conf"
+      sed -i "s/\"outgoing_interface\": .*,/\"outgoing_interface\": \"${VPNADAPTER}\",/" "${CONFIGDIR}/core.conf"
+   else
+      echo "$(date '+%H:%M:%S') [ERROR   ][deluge.launcher.docker        :${PID}] No VPN adapters present. Private connection not available. Exiting"
+      exit 1
+   fi
 }
 
 LaunchDeluge(){
+   tail -Fn0 "${LOGDIR}/${LOG_DAEMON}" &
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Starting Deluge as ${USER}"
-   su -m "${USER}" -c '/usr/bin/deluged -c '"${CONFIGDIR}"' -L info -l '"${LOGDIR}/${LOG_DAEMON}"''
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Start Deluge webui"
-   su -m "${USER}" -c '/usr/bin/deluge-web -c '"${CONFIGDIR}"' -L error -l '"${LOGDIR}/${LOG_WEB}"''
-   sleep 999999h
+   su -m "${USER}" -c '/usr/bin/deluged -c '"${CONFIGDIR}"' -L warning -l '"${LOGDIR}/${LOG_DAEMON}"''
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Start Deluge webui as ${USER}"
+   su -m "${USER}" -c '/usr/bin/deluge-web -c '"${CONFIGDIR}"' -L warning -l '"${LOGDIR}/${LOG_WEB}"''
+   tail -Fn0 "${LOGDIR}/${LOG_WEB}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ***** Stopping Deluge *****"
 }
 
@@ -69,4 +85,5 @@ Initialise
 CreateGroup
 CreateUser
 SetOwnerAndGroup
+BindIP
 LaunchDeluge
