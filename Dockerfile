@@ -1,10 +1,10 @@
 FROM alpine:latest
 MAINTAINER boredazfcuk
-ENV BUILDDEPENDENCIES="nano build-base g++ linux-headers autoconf cmake automake" \
+ENV BUILDDEPENDENCIES="nano build-base g++ linux-headers autoconf cmake automake py3-pip" \
    BUILDLIBRARIES="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev" \
    NZB2MEDIADEPENDENCIES="python3 git libgomp ffmpeg" \
-   DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip" \
-   PIP3DEPENDENCIES="pip geoip slimit" \
+   DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext" \
+   PIPDEPENDENCIES="geoip ply slimit" \
    CONFIGDIR="/config" \
    PYTHON_EGG_CACHE="/config/.pythoneggcache" \
    N2MBASE="/nzbToMedia" \
@@ -31,8 +31,8 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install build dependencies" && \
    apk add --no-cache --virtual=build-deps ${BUILDDEPENDENCIES} && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install build libraries" && \
    apk add --no-cache --virtual=build-libs ${BUILDLIBRARIES} && \
-echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install dependencies" && \
-   pip3 install --no-cache-dir --upgrade ${PIP3DEPENDENCIES} && \
+echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install pip dependencies" && \
+   pip3 install --no-cache-dir --upgrade pip ${PIPDEPENDENCIES} && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Create user python config" && \
    PYTHONINCLUDES="$(python3-config --includes | awk '{print $2}')" && \
    PYTHONINCLUDES="${PYTHONINCLUDES//-I/}" && \
@@ -72,11 +72,8 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Build and install libtorrent librari
    python3 setup.py install && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Deluge" && \
    cd "${DELUGESRC}" && \
-   DELUGELATEST="$(wget -qO- "https://ftp.osuosl.org/pub/deluge/version")" && \
-   DELUGEMAJOR="$(echo "$DELUGELATEST" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}')" && \
-   wget -q "https://ftp.osuosl.org/pub/deluge/source/${DELUGEMAJOR}/deluge-${DELUGELATEST}.tar.xz" && \
-   tar xvf "deluge-${DELUGELATEST}.tar.xz" -C "${DELUGESRC}" && \
-   cd "deluge-${DELUGELATEST}" && \
+   git clone -b master git://deluge-torrent.org/deluge.git "${DELUGESRC}" && \
+   pip3 install --no-cache-dir -r requirements.txt && \
    python3 setup.py build && \
    cd "${LIBTORRENTBUILD}" && \
    python3 setup.py install && \
@@ -102,10 +99,14 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script" 
    chmod +x /usr/local/bin/start-deluge.sh /usr/local/bin/healthcheck.sh && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Clean Up" && \
    apk del --purge --no-progress build-deps build-libs && \
-   pip3 uninstall -y slimit && \
+   pip3 uninstall -y ply slimit && \
    rm -rv "/shared" /tmp/* ~/user-config.jam && \
    PATH="${OLDPATH}" && \
+   unset BOOSTREPO BOOSTSRC BOOSTENV DELUGESRC PIPDEPENDENCIES OLDPWD N2MREPO DEPENDENCIES PIP3DEPENDENCIES PARREPO NZB2MEDIADEPENDENCIES BUILDLIBRARIES BUILDDEPENDENCIES LIBTORRENTSRC RASTERBARREPO && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD COMPLETE *****"
+
+HEALTHCHECK --start-period=10s --interval=1m --timeout=10s \
+   CMD /usr/local/bin/healthcheck.sh
 
 VOLUME "${CONFIGDIR}"
 
