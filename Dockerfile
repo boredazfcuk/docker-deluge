@@ -4,7 +4,7 @@ ENV BUILDDEPENDENCIES="nano build-base g++ linux-headers autoconf cmake automake
    BUILDLIBRARIES="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev" \
    NZB2MEDIADEPENDENCIES="python3 git libgomp ffmpeg" \
    DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext" \
-   PIPDEPENDENCIES="geoip ply slimit" \
+   PIPDEPENDENCIES="geoip py3-bencode ply slimit" \
    CONFIGDIR="/config" \
    PYTHON_EGG_CACHE="/config/.pythoneggcache" \
    N2MBASE="/nzbToMedia" \
@@ -77,13 +77,6 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Deluge" && \
    python3 setup.py build && \
    cd "${LIBTORRENTBUILD}" && \
    python3 setup.py install && \
-echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install ${N2MREPO}" && \
-   cd "${N2MBASE}" && \
-   git clone -b master "https://github.com/${N2MREPO}.git" "${N2MBASE}" && \
-   mkdir /shared && \
-   touch "/shared/autoProcessMedia.cfg" && \
-   ln -s "/shared/autoProcessMedia.cfg" "${N2MBASE}/autoProcessMedia.cfg" && \
-   ln -s "/usr/bin/python${PYTHONMAJOR}" "/usr/bin/python" && \
 echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install ${PARREPO}" && \
    TEMP="$(mktemp -d)" && \
    git clone -b master "https://github.com/${PARREPO}.git" "${TEMP}" && \
@@ -95,14 +88,15 @@ echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install ${PARREPO}" && \
    make && \
    make check && \
    make install && \
-echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script" && \
+echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script and create python link" && \
    chmod +x /usr/local/bin/start-deluge.sh /usr/local/bin/healthcheck.sh && \
+   ln -s "/usr/bin/python${PYTHONMAJOR}" "/usr/bin/python" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Clean Up" && \
    apk del --purge --no-progress build-deps build-libs && \
    pip3 uninstall -y ply slimit && \
-   rm -rv "/shared" /tmp/* ~/user-config.jam && \
+   rm -rv /tmp/* ~/user-config.jam && \
    PATH="${OLDPATH}" && \
-   unset BOOSTREPO BOOSTSRC BOOSTENV DELUGESRC PIPDEPENDENCIES OLDPWD N2MREPO DEPENDENCIES PIP3DEPENDENCIES PARREPO NZB2MEDIADEPENDENCIES BUILDLIBRARIES BUILDDEPENDENCIES LIBTORRENTSRC RASTERBARREPO && \
+   unset BOOSTREPO BOOSTSRC BOOSTENV DELUGESRC PIPDEPENDENCIES DEPENDENCIES PIP3DEPENDENCIES PARREPO NZB2MEDIADEPENDENCIES BUILDLIBRARIES BUILDDEPENDENCIES LIBTORRENTSRC RASTERBARREPO OLDPATH && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD COMPLETE *****"
 
 HEALTHCHECK --start-period=10s --interval=1m --timeout=10s \

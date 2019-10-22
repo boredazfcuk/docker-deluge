@@ -59,6 +59,16 @@ SetOwnerAndGroup(){
    find "${PACKAGES}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
 }
 
+InstallnzbToMedia(){
+   if [ ! -f "${N2MBASE}/nzbToMedia.py" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ${N2MREPO} not detected, installing..."
+      chown "${USER}":"${GROUP}" "${N2MBASE}"
+      cd "${N2MBASE}"
+      su "${USER}" -c "git clone -b master https://github.com/${N2MREPO}.git ${N2MBASE}"
+      if [ -f "/shared/autoProcessMedia.cfg" ]; then ln -s "/shared/autoProcessMedia.cfg" "${N2MBASE}/autoProcessMedia.cfg"; fi
+   fi
+}
+
 BindIP(){
    if [ ! -z "${VPNIP}" ]; then
       VPNADAPTER="$(ip ad | grep tun. | grep inet | awk '{print $7}')"
@@ -85,5 +95,6 @@ Initialise
 CreateGroup
 CreateUser
 SetOwnerAndGroup
+InstallnzbToMedia
 BindIP
 LaunchDeluge
