@@ -20,7 +20,7 @@ Initialise(){
    if [ -z "${UID}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] User ID not set, defaulting to '1000'"; UID="1000"; fi
    if [ -z "${GROUP}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Group name not set, defaulting to 'group'"; GROUP="group"; fi
    if [ -z "${GID}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Group ID not set, defaulting to '1000'"; GID="1000"; fi
-   if [ ! -z  "$(ip ad | grep tun. )" ]; then VPNIP="$(ip ad | grep tun. | grep inet | awk '{print $2}')"; echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] VPN tunnel adapter detected, binding daemon to ${VPNIP}"; fi
+   if [ ! -z  "$(ip a | grep tun. )" ]; then VPNIP="$(ip a | grep tun. | grep inet | awk '{print $2}')"; echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] VPN tunnel adapter detected, binding daemon to ${VPNIP}"; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local user: ${USER}:${UID}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local group: ${GROUP}:${GID}"
 }
@@ -60,18 +60,23 @@ SetOwnerAndGroup(){
 }
 
 InstallnzbToMedia(){
-   if [ ! -f "${N2MBASE}/nzbToMedia.py" ]; then
+   if [ ! -d "${N2MBASE}/.git" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ${N2MREPO} not detected, installing..."
       chown "${USER}":"${GROUP}" "${N2MBASE}"
       cd "${N2MBASE}"
       su "${USER}" -c "git clone -b master https://github.com/${N2MREPO}.git ${N2MBASE}"
-      if [ -f "/shared/autoProcessMedia.cfg" ]; then ln -s "/shared/autoProcessMedia.cfg" "${N2MBASE}/autoProcessMedia.cfg"; fi
+      if [ -f "/shared/autoProcessMedia.cfg" ]; then
+         ln -s "/shared/autoProcessMedia.cfg" "${N2MBASE}/autoProcessMedia.cfg"
+      else
+         cp "${N2MBASE}/autoProcessMedia.cfg.spec" "/shared/autoProcessMedia.cfg"
+         ln -s "/shared/autoProcessMedia.cfg" "${N2MBASE}/autoProcessMedia.cfg"
+      fi
    fi
 }
 
 BindIP(){
    if [ ! -z "${VPNIP}" ]; then
-      VPNADAPTER="$(ip ad | grep tun. | grep inet | awk '{print $7}')"
+      VPNADAPTER="$(ip a | grep tun. | grep inet | awk '{print $7}')"
       sed -i "s/\"listen_interface\": .*,/\"listen_interface\": \"${VPNIP}\",/" "${CONFIGDIR}/core.conf"
       sed -i "s/\"outgoing_interface\": .*,/\"outgoing_interface\": \"${VPNADAPTER}\",/" "${CONFIGDIR}/core.conf"
    else

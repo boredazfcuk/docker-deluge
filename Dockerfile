@@ -3,8 +3,8 @@ MAINTAINER boredazfcuk
 ENV BUILDDEPENDENCIES="nano build-base g++ linux-headers autoconf cmake automake py3-pip" \
    BUILDLIBRARIES="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev" \
    NZB2MEDIADEPENDENCIES="python3 git libgomp ffmpeg" \
-   DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext" \
-   PIPDEPENDENCIES="geoip py3-bencode ply slimit" \
+   DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib" \
+   PIPDEPENDENCIES="geoip bencode ply slimit" \
    CONFIGDIR="/config" \
    PYTHON_EGG_CACHE="/config/.pythoneggcache" \
    N2MBASE="/nzbToMedia" \
@@ -102,6 +102,6 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD COMPLETE *****"
 HEALTHCHECK --start-period=10s --interval=1m --timeout=10s \
    CMD /usr/local/bin/healthcheck.sh
 
-VOLUME "${CONFIGDIR}"
+VOLUME "${CONFIGDIR}" "/shared"
 
 CMD /usr/local/bin/start-deluge.sh
