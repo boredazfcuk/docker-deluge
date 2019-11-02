@@ -23,6 +23,23 @@ Initialise(){
    if [ ! -z  "$(ip a | grep tun. )" ]; then VPNIP="$(ip a | grep tun. | grep inet | awk '{print $2}')"; echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] VPN tunnel adapter detected, binding daemon to ${VPNIP}"; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local user: ${USER}:${UID}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local group: ${GROUP}:${GID}"
+
+   if [ ! -f "${CONFIGDIR}/https" ]; then mkdir -p "${CONFIGDIR}/https"; fi
+   if [ ! -f "${CONFIGDIR}/https/deluge.crt" ]; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Generate private key for encrypting communications"
+      openssl ecparam -genkey -name secp384r1 -out "${CONFIGDIR}/https/deluge.key"
+      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Create certificate request"
+      openssl req -new -subj "/C=NA/ST=Global/L=Global/O=Deluge/OU=Deluge/CN=Deluge/" -key "${CONFIGDIR}/https/deluge.key" -out "${CONFIGDIR}/https/deluge.csr"
+      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Generate self-signed certificate request"
+      openssl x509 -req -sha256 -days 3650 -in "${CONFIGDIR}/https/deluge.csr" -signkey "${CONFIGDIR}/https/deluge.key" -out "${CONFIGDIR}/https/deluge.crt"
+      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure Deluge to use ${CONFIGDIR}/https/deluge.key key file"
+      #DELUGEKEY="$(sed -nr '/\"cert\"/,/\[/{/^ssl_key =/p}' "${CONFIGDIR}/settings.conf")"
+      #sed -i "s%^${DELUGEKEY}$%ssl_key = ${CONFIGDIR}/https/deluge.key%" "${CONFIGDIR}/settings.conf"
+      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure Deluge to use ${CONFIGDIR}/https/deluge.crt certificate file"
+      #DELUGECERT="$(sed -nr '/\[core\]/,/\[/{/^ssl_cert =/p}' "${CONFIGDIR}/settings.conf")"
+      #sed -i "s%^${DELUGEKEY}$%ssl_cert = ${CONFIGDIR}/https/deluge.crt%" "${CONFIGDIR}/settings.conf"
+   fi
+
 }
 
 CreateGroup(){

@@ -3,10 +3,10 @@ MAINTAINER boredazfcuk
 ENV BUILDDEPENDENCIES="nano build-base g++ linux-headers autoconf cmake automake py3-pip" \
    BUILDLIBRARIES="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev" \
    NZB2MEDIADEPENDENCIES="python3 git libgomp ffmpeg" \
-   DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib" \
+   DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib openssl" \
    PIPDEPENDENCIES="geoip bencode ply slimit" \
    CONFIGDIR="/config" \
-   PYTHON_EGG_CACHE="/config/.pythoneggcache" \
+   PYTHON_EGG_CACHE="/.config/.pythoneggcache" \
    N2MBASE="/nzbToMedia" \
    N2MREPO="clinton-hall/nzbToMedia" \
 	PARREPO="Parchive/par2cmdline" \
