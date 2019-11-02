@@ -11,6 +11,7 @@ Initialise(){
    DELUGEVERSION="$(usr/bin/deluge --version | grep deluge | awk '{print $2}')"
    PYTHONMAJOR="$(python3 --version | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}')"
    PACKAGES="/usr/lib/python${PYTHONMAJOR}/site-packages"
+   LANIP="$(hostname -i)"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ***** Starting Deluge v${DELUGEVERSION} *****"
    if [ ! -d "${LOGDIR}" ]; then mkdir -p "${LOGDIR}"; fi
    if [ ! -d "${PYTHON_EGG_CACHE}" ]; then mkdir "${PYTHON_EGG_CACHE}"; fi
@@ -20,25 +21,35 @@ Initialise(){
    if [ -z "${UID}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] User ID not set, defaulting to '1000'"; UID="1000"; fi
    if [ -z "${GROUP}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Group name not set, defaulting to 'group'"; GROUP="group"; fi
    if [ -z "${GID}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Group ID not set, defaulting to '1000'"; GID="1000"; fi
-   if [ ! -z  "$(ip a | grep tun. )" ]; then VPNIP="$(ip a | grep tun. | grep inet | awk '{print $2}')"; echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] VPN tunnel adapter detected, binding daemon to ${VPNIP}"; fi
+   if [ ! -z  "$(ip a | grep tun. )" ]; then VPNIP="$(ip a | grep tun.$ | awk '{print $2}')"; echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] VPN tunnel adapter detected, binding daemon to ${VPNIP}"; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local user: ${USER}:${UID}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local group: ${GROUP}:${GID}"
 
    if [ ! -f "${CONFIGDIR}/https" ]; then mkdir -p "${CONFIGDIR}/https"; fi
-   if [ ! -f "${CONFIGDIR}/https/deluge.crt" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Generate private key for encrypting communications"
+   if [ ! -f "${CONFIGDIR}/https/deluge.key" ]; then
+      echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Generate private key for encrypting communications"
       openssl ecparam -genkey -name secp384r1 -out "${CONFIGDIR}/https/deluge.key"
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Create certificate request"
-      openssl req -new -subj "/C=NA/ST=Global/L=Global/O=Deluge/OU=Deluge/CN=Deluge/" -key "${CONFIGDIR}/https/deluge.key" -out "${CONFIGDIR}/https/deluge.csr"
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Generate self-signed certificate request"
-      openssl x509 -req -sha256 -days 3650 -in "${CONFIGDIR}/https/deluge.csr" -signkey "${CONFIGDIR}/https/deluge.key" -out "${CONFIGDIR}/https/deluge.crt"
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure Deluge to use ${CONFIGDIR}/https/deluge.key key file"
-      #DELUGEKEY="$(sed -nr '/\"cert\"/,/\[/{/^ssl_key =/p}' "${CONFIGDIR}/settings.conf")"
-      #sed -i "s%^${DELUGEKEY}$%ssl_key = ${CONFIGDIR}/https/deluge.key%" "${CONFIGDIR}/settings.conf"
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Configure Deluge to use ${CONFIGDIR}/https/deluge.crt certificate file"
-      #DELUGECERT="$(sed -nr '/\[core\]/,/\[/{/^ssl_cert =/p}' "${CONFIGDIR}/settings.conf")"
-      #sed -i "s%^${DELUGEKEY}$%ssl_cert = ${CONFIGDIR}/https/deluge.crt%" "${CONFIGDIR}/settings.conf"
    fi
+   if [ ! -f "${CONFIGDIR}/https/deluge.csr" ]; then
+      echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Create certificate request"
+      openssl req -new -subj "/C=NA/ST=Global/L=Global/O=Deluge/OU=Deluge/CN=Deluge/" -key "${CONFIGDIR}/https/deluge.key" -out "${CONFIGDIR}/https/deluge.csr"
+   fi
+   if [ ! -f "${CONFIGDIR}/https/deluge.crt" ]; then
+      echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Generate self-signed certificate request"
+      openssl x509 -req -sha256 -days 3650 -in "${CONFIGDIR}/https/deluge.csr" -signkey "${CONFIGDIR}/https/deluge.key" -out "${CONFIGDIR}/https/deluge.crt"
+   fi
+
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure Deluge to use ${CONFIGDIR}/https/deluge.key key file"
+   sed -i "s%\"pkey\": \".*%\"pkey\": \"${CONFIGDIR}\/https\/deluge.key\",%" "${CONFIGDIR}/web.conf"
+   
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure Deluge to use ${CONFIGDIR}/https/deluge.crt certificate file"
+   sed -i "s%\"cert\": \".*%\"cert\": \"${CONFIGDIR}\/https\/deluge.crt\",%" "${CONFIGDIR}/web.conf"
+
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure Deluge to use HTTPS"
+   sed -i "s%\"pkey\": \".*%\"pkey\": \"${CONFIGDIR}\/https\/deluge.key\",%" "${CONFIGDIR}/web.conf"
+
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure Deluge web interface to listen on ${LANIP}"
+   sed -i "s%\"interface\": \".*%\"interface\": \"${LANIP}\",%" "${CONFIGDIR}/web.conf"
 
 }
 
@@ -93,7 +104,7 @@ InstallnzbToMedia(){
 
 BindIP(){
    if [ ! -z "${VPNIP}" ]; then
-      VPNADAPTER="$(ip a | grep tun. | grep inet | awk '{print $7}')"
+      VPNADAPTER="$(ip a | grep tun.$ | awk '{print $7}')"
       sed -i "s/\"listen_interface\": .*,/\"listen_interface\": \"${VPNIP}\",/" "${CONFIGDIR}/core.conf"
       sed -i "s/\"outgoing_interface\": .*,/\"outgoing_interface\": \"${VPNADAPTER}\",/" "${CONFIGDIR}/core.conf"
    else
@@ -104,7 +115,7 @@ BindIP(){
 
 LaunchDeluge(){
    tail -Fn0 "${LOGDIR}/${LOG_DAEMON}" &
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Starting Deluge as ${USER}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Starting Deluge daemon as ${USER}"
    su -m "${USER}" -c '/usr/bin/deluged -c '"${CONFIGDIR}"' -L warning -l '"${LOGDIR}/${LOG_DAEMON}"''
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Start Deluge webui as ${USER}"
    su -m "${USER}" -c '/usr/bin/deluge-web -c '"${CONFIGDIR}"' -L warning -l '"${LOGDIR}/${LOG_WEB}"''
