@@ -118,7 +118,7 @@ LaunchDeluge(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Starting Deluge daemon as ${USER}"
    su -m "${USER}" -c '/usr/bin/deluged -c '"${CONFIGDIR}"' -L warning -l '"${LOGDIR}/${LOG_DAEMON}"''
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Start Deluge webui as ${USER}"
-   su -m "${USER}" -c '/usr/bin/deluge-web -c '"${CONFIGDIR}"' -L warning -l '"${LOGDIR}/${LOG_WEB}"''
+   su -m "${USER}" -c '/usr/bin/deluge-web -c '"${CONFIGDIR}"' --base /deluge/ -L warning -l '"${LOGDIR}/${LOG_WEB}"''
    tail -Fn0 "${LOGDIR}/${LOG_WEB}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ***** Stopping Deluge *****"
 }
