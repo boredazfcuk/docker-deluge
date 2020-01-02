@@ -1,28 +1,25 @@
 FROM alpine:latest
 MAINTAINER boredazfcuk
-ENV BUILDDEPENDENCIES="nano build-base g++ linux-headers autoconf cmake automake py3-pip" \
-   BUILDLIBRARIES="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev" \
-   NZB2MEDIADEPENDENCIES="python3 git libgomp ffmpeg" \
-   DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib openssl" \
-   PIPDEPENDENCIES="geoip bencode ply slimit" \
-   CONFIGDIR="/config" \
-   PYTHON_EGG_CACHE="/config/.pythoneggcache" \
-   N2MBASE="/nzbToMedia" \
-   N2MREPO="clinton-hall/nzbToMedia" \
-	PARREPO="Parchive/par2cmdline" \
-   BOOSTREPO="boostorg/boost" \
-   RASTERBARREPO="arvidn/libtorrent" \
-   BOOSTSRC="/tmp/boost/source" \
-   BOOSTENV="/tmp/boost/env" \
-   LIBTORRENTSRC="/tmp/libtorrent/source" \
-   DELUGESRC="/tmp/deluge/source"
-
-COPY start-deluge.sh /usr/local/bin/start-deluge.sh
-COPY healthcheck.sh /usr/local/bin/healthcheck.sh
+ARG BUILDDEPENDENCIES="nano build-base g++ linux-headers autoconf cmake automake py3-pip"
+ARG BUILDLIBRARIES="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev"
+ARG NZB2MEDIADEPENDENCIES="python3 git libgomp ffmpeg"
+ARG DEPENDENCIES="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib openssl"
+ARG PIPDEPENDENCIES="geoip bencode ply slimit"
+ARG N2MREPO="clinton-hall/nzbToMedia"
+ARG PARREPO="Parchive/par2cmdline"
+ARG BOOSTREPO="boostorg/boost"
+ARG RASTERBARREPO="arvidn/libtorrent"
+ARG BOOSTVERSIONOVERRIDE="1.71.0"
+ARG BOOSTSRC="/tmp/boost/source"
+ARG BOOSTENV="/tmp/boost/env"
+ARG LIBTORRENTSRC="/tmp/libtorrent/source"
+ARG DELUGESRC="/tmp/deluge/source"
+ENV CONFIGDIR="/config" \
+   PYTHON_EGG_CACHE="/config/.pythoneggcache"
 
 RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD STARTED *****" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Create required directories" && \
-   mkdir -pv "${BOOSTSRC}" "${BOOSTENV}" "${LIBTORRENTSRC}" "${DELUGESRC}" "${N2MBASE}" && \
+   mkdir -pv "${BOOSTSRC}" "${BOOSTENV}" "${LIBTORRENTSRC}" "${DELUGESRC}" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install dependencies" && \
    apk add --no-cache ${DEPENDENCIES} && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install ${N2MREPO} dependencies" && \
@@ -40,11 +37,21 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Create user python config" && \
    echo -e "using gcc ;\nusing python : ${PYTHONMAJOR} : /usr/bin/python${PYTHONMAJOR} : ${PYTHONINCLUDES} : /usr/lib/python${PYTHONMAJOR} : ;" > ~/user-config.jam && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract boost" && \
    cd "${BOOSTSRC}" && \
-   BOOSTLATEST="$(wget -qO- https://dl.bintray.com/boostorg/release/ | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sort -r | head -n 1)" && \
-   BOOST_ROOT="${BOOSTSRC}/boost_${BOOSTLATEST//./_}" && \
+   if [ ! -z "${BOOSTVERSIONOVERRIDE}" ]; then \
+      BOOSTVERSION="${BOOSTVERSIONOVERRIDE}"; \
+      BOOSTLATESTFILE="$(wget -qO- https://dl.bintray.com/boostorg/release/${BOOSTVERSION}/source/ | grep -v "rc" | grep -Eo '\".*\"' | grep -E '.*\.tar.gz\"' | sed 's/\"//g' | sort -r | head -n 1)"; \
+   else \
+      BOOSTVERSIONS="$(wget -qO- https://dl.bintray.com/boostorg/release/ | grep -v "rc" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sort -r | uniq)"; \
+      while [ -z "${BOOSTLATESTFILE}" ]; do \
+         BOOSTVERSION="$(echo "${BOOSTVERSIONS}" | head -n1)"; \
+         BOOSTLATESTFILE="$(wget -qO- https://dl.bintray.com/boostorg/release/${BOOSTVERSION}/source/ | grep -v "rc" | grep -Eo '\".*\"' | grep -E '.*\.tar.gz\"' | sed 's/\"//g' | sort -r | head -n 1)"; \
+         BOOSTVERSIONS="$(echo "${BOOSTVERSIONS}" | sed '1d')"; \
+      done \
+   fi && \
+   BOOST_ROOT="${BOOSTSRC}/boost_${BOOSTVERSION//./_}" && \
    BOOST_BUILD_PATH="${BOOST_ROOT}/tools/build" && \
-   wget -q "https://dl.bintray.com/boostorg/release/${BOOSTLATEST}/source/boost_${BOOSTLATEST//./_}.tar.gz" && \
-   tar xvf "${BOOSTSRC}/boost_${BOOSTLATEST//./_}.tar.gz" -C "${BOOSTSRC}" && \
+   wget -q "https://dl.bintray.com/boostorg/release/${BOOSTVERSION}/source/${BOOSTLATESTFILE}" && \
+   tar xvf "${BOOSTSRC}/${BOOSTLATESTFILE}" -C "${BOOSTSRC}" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Stage boost-build" && \
    cd "${BOOST_BUILD_PATH}" && \
    ./bootstrap.sh && \
@@ -88,20 +95,26 @@ echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install ${PARREPO}" && \
    make && \
    make check && \
    make install && \
-echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script and create python link" && \
-   chmod +x /usr/local/bin/start-deluge.sh /usr/local/bin/healthcheck.sh && \
-   ln -s "/usr/bin/python${PYTHONMAJOR}" "/usr/bin/python" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Clean Up" && \
    apk del --purge --no-progress build-deps build-libs && \
    pip3 uninstall -y ply slimit && \
    rm -rv /tmp/* ~/user-config.jam && \
-   PATH="${OLDPATH}" && \
-   unset BOOSTREPO BOOSTSRC BOOSTENV DELUGESRC PIPDEPENDENCIES DEPENDENCIES PIP3DEPENDENCIES PARREPO NZB2MEDIADEPENDENCIES BUILDLIBRARIES BUILDDEPENDENCIES LIBTORRENTSRC RASTERBARREPO OLDPATH && \
+   ln -s "/usr/bin/python${PYTHONMAJOR}" "/usr/bin/python" && \
+   PATH="${OLDPATH}"
+
+COPY start-deluge.sh /usr/local/bin/start-deluge.sh
+COPY healthcheck.sh /usr/local/bin/healthcheck.sh
+COPY plugins/autoadd.conf "${CONFIGDIR}/autoadd.conf"
+COPY plugins/execute.conf "${CONFIGDIR}/execute.conf"
+COPY plugins/label.conf "${CONFIGDIR}/label.conf"
+
+RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script and create python link" && \
+   chmod +x /usr/local/bin/start-deluge.sh /usr/local/bin/healthcheck.sh && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD COMPLETE *****"
 
-HEALTHCHECK --start-period=10s --interval=1m --timeout=10s \
+HEALTHCHECK --start-period=30s --interval=1m --timeout=30s \
    CMD /usr/local/bin/healthcheck.sh
 
-VOLUME "${CONFIGDIR}" "/shared"
+VOLUME "${CONFIGDIR}"
 
 CMD /usr/local/bin/start-deluge.sh

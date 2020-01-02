@@ -1,5 +1,14 @@
 #!/bin/ash
-DELUGECREDENTIALS="$(grep ^${USER} ${CONFIGDIR}/auth | cut -d: -f1-2 | tr : ' ')"
-/usr/bin/deluge-console "connect localhost ${DELUGECREDENTIALS}" >/dev/null 2>&1 | wc -c | grep -wq 0 || exit 1
-wget --quiet --tries=1 --no-check-certificate --spider "https://${HOSTNAME}:8112/" || exit 1
+EXIT_CODE=0
+EXIT_CODE="$(/usr/bin/deluge-console "connect localhost localclient $(grep ^localclient ${CONFIGDIR}/auth | cut -d: -f2)" >/dev/null 2>&1 | wc -c | grep -wq 0 | echo ${?})"
+if [ "${EXIT_CODE}" != 0 ]; then
+   echo "Console not responding: Error ${EXIT_CODE}"
+   exit 1
+fi
+EXIT_CODE="$(wget --quiet --tries=1 --no-check-certificate --spider "https://${HOSTNAME}:8112/" && echo $?)"
+if [ "${EXIT_CODE}" != 0 ]; then
+   echo "WebUI not responding: Error ${EXIT_CODE}"
+   exit 1
+fi
+echo "Console and WebUI available"
 exit 0
