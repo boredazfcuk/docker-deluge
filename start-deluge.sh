@@ -247,7 +247,7 @@ InstallnzbToMedia(){
       -e "/^\[Torrent\]/,/^\[.*\]/ s%default_downloadDirectory =.*%default_downloadDirectory = ${OTHERCOMPLETEDIR}%" \
       "${N2MBASE}/autoProcessMedia.cfg"
 
-   if [ ! -z "${COUCHPOTATO}" ]; then
+   if [ ! -z "${COUCHPOTATOENABLED}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure nzbToMedia CouchPotato settings"
       sed -i \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -258,7 +258,7 @@ InstallnzbToMedia(){
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /couchpotato%" \
          "${N2MBASE}/autoProcessMedia.cfg"
    fi
-   if [ ! -z "${SICKGEAR}" ]; then
+   if [ ! -z "${SICKGEARENABLED}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure nzbToMedia SickGear settings"
       sed -i \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -270,7 +270,7 @@ InstallnzbToMedia(){
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /sickgear%" \
          "${N2MBASE}/autoProcessMedia.cfg"
    fi
-   if [ ! -z "${HEADPHONES}" ]; then
+   if [ ! -z "${HEADPHONESENABLED}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure nzbToMedia Headphones settings"
       sed -i \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
