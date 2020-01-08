@@ -26,12 +26,13 @@ Initialise(){
    if [ -z "${MUSICCOMPLETEDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Category complete path not set for music, defaulting to /storage/downloads/complete/music/"; MUSICCOMPLETEDIR="/storage/downloads/complete/music/"; fi
    if [ -z "${OTHERCOMPLETEDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Category complete path not set for other, defaulting to /storage/downloads/complete/other/"; OTHERCOMPLETEDIR="/storage/downloads/complete/other/"; fi
    if [ -z "${TVCOMPLETEDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Category complete path not set for tv, defaulting to /storage/downloads/complete/tv/"; TVCOMPLETEDIR="/storage/downloads/complete/tv/"; fi
-   if [ -z "${DELUGEWATCHDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Watch path not set, defaulting to /storage/downloads/watch/deluge/movies/"; DELUGEWATCHDIR="/storage/downloads/watch/deluge/movies/"; DELUGEABSWATCHDIR="${DELUGEWATCHDIR%/}"; fi
+   if [ -z "${DELUGEWATCHDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Watch path not set, defaulting to /storage/downloads/watch/deluge/"; DELUGEWATCHDIR="/storage/downloads/watch/deluge/"; fi
    if [ -z "${DELUGEFILEBACKUPDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Torrent backup path not set, defaulting to /storage/downloads/backup/deluge/"; DELUGEFILEBACKUPDIR="/storage/downloads/backup/deluge/"; fi
    if [ -z "${DELUGEINCOMINGDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Download path not set, defaulting to /storage/downloads/incoming/deluge/"; DELUGEINCOMINGDIR="/storage/downloads/incoming/deluge/"; fi
    if [ -z "${DOWNLOADCOMPLETEDIR}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${PID}] Download complete path not set, defaulting to /storage/downloads/complete/"; DOWNLOADCOMPLETEDIR="/storage/downloads/complete/"; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local user: ${STACKUSER}:${UID}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Local group: ${GROUP}:${GID}"
+   DELUGEABSPATHWATCHDIR="${DELUGEWATCHDIR%/}"
 }
 
 CreateGroup(){
@@ -54,10 +55,18 @@ CreateUser(){
    fi
 }
 
+CreateLogFile(){
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Create log directory and daemon log file"
+   mkdir -p "${LOG_DIR}"
+   touch "${LOG_DIR}/${LOG_DAEMON}"
+   chown -R "${STACKUSER}":"${GROUP}" "${LOG_DIR}"
+}
+
 FirstRun(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] ***** First run detected, creating configuration *****"
    find "${CONFIGDIR}" ! -user "${STACKUSER}" -exec chown "${STACKUSER}" {} \;
    find "${CONFIGDIR}" ! -group "${GROUP}" -exec chgrp "${GROUP}" {} \;
+   if [ ! -f "${LOG_DIR}/${LOG_DAEMON}" ]; then CreateLogFile; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Starting Deluge daemon as ${STACKUSER} to generate default configuration"
    su "${STACKUSER}" -c "/usr/bin/deluged --config ${CONFIGDIR} --logfile ${LOG_DIR}/${LOG_DAEMON} --loglevel none"
    sleep 5
@@ -163,12 +172,7 @@ EnableSSL(){
 
 Configure(){
    sleep 5
-   if [ ! -d "${LOG_DIR}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Create log directory and daemon log file"
-      mkdir -p "${LOG_DIR}"
-      touch "${LOG_DIR}/${LOG_DAEMON}"
-      chown -R "${STACKUSER}":"${GROUP}" "${LOG_DIR}"
-   fi
+   if [ ! -f "${LOG_DIR}/${LOG_DAEMON}" ]; then CreateLogFile; fi
    if [ ! -z  "$(ip a | grep tun. )" ]; then
       VPNIP="$(ip a | grep tun.$ | awk '{print $2}')"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] VPN tunnel adapter detected, binding daemon to ${VPNIP}"
@@ -186,15 +190,15 @@ Configure(){
    sed -i \
       -e "s%\"interface\": \".*%\"interface\": \"${LANIP}\",%" \
       "${CONFIGDIR}/web.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure downloads path"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure completed downloads path"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure torrent backup path"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure downloads path: ${DELUGEINCOMINGDIR}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure completed downloads path: ${DOWNLOADCOMPLETEDIR}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure torrent backup path: ${DELUGEFILEBACKUPDIR}"
    sed -i \
       -e "s%\"download_location\": .*%\"download_location\": \"${DELUGEINCOMINGDIR}\",%" \
       -e "s%\"move_completed_path\": .*%\"move_completed_path\": \"${DOWNLOADCOMPLETEDIR}\",%" \
       -e "s%\"torrentfiles_location\": .*%\"torrentfiles_location\": \"${DELUGEFILEBACKUPDIR}\",%" \
       "${CONFIGDIR}/core.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure Labels plugin paths"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure Labels plugin paths: ${MOVIECOMPLETEDIR}, ${MUSICCOMPLETEDIR}, ${OTHERCOMPLETEDIR} & ${TVCOMPLETEDIR}"
    sed -i \
       -e "/\"movie\": {$/,/},/ s/\"move_completed\": .*/\"move_completed\": true,/" \
       -e "/\"movie\": {$/,/},/ s%\"move_completed_path\": .*%\"move_completed_path\": \"${MOVIECOMPLETEDIR}\",%" \
@@ -205,10 +209,17 @@ Configure(){
       -e "/\"tv\": {$/,/},/ s/\"move_completed\": .*/\"move_completed\": true,/" \
       -e "/\"tv\": {$/,/},/ s%\"move_completed_path\": .*%\"move_completed_path\": \"${TVCOMPLETEDIR}\",%" \
       "${CONFIGDIR}/label.conf"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure AutoAdd plugin paths"
+   LABEL="movie"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure AutoAdd plugin for ${LABEL} downloads"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure AutoAdd plugin base watch dir location: ${DELUGEABSPATHWATCHDIR}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure AutoAdd plugin backup file location: ${DELUGEFILEBACKUPDIR}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure AutoAdd plugin download location: ${DELUGEINCOMINGDIR}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure AutoAdd plugin movie watch location: ${DELUGEWATCHDIR}${LABEL}/"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${PID}] Configure AutoAdd plugin completed download location: ${DOWNLOADCOMPLETEDIR}"
    sed -i \
-      -e "/\"1\": {$/,/}/ s%\"path\": .*%\"path\": \"${DELUGEWATCHDIR}\",%" \
-      -e "/\"1\": {$/,/}/ s%\"abspath\": .*%\"abspath\": \"${DELUGEABSWATCHDIR}\",%" \
+      -e "/\"1\": {$/,/}/ s%\"label\": .*%\"label\": \"${LABEL}\",%" \
+      -e "/\"1\": {$/,/}/ s%\"path\": .*%\"path\": \"${DELUGEWATCHDIR}${LABEL}\/\",%" \
+      -e "/\"1\": {$/,/}/ s%\"abspath\": .*%\"abspath\": \"${DELUGEABSPATHWATCHDIR}\",%" \
       -e "/\"1\": {$/,/}/ s%\"copy_torrent\": .*%\"copy_torrent\": \"${DELUGEFILEBACKUPDIR}\",%" \
       -e "/\"1\": {$/,/}/ s%\"download_location\": .*%\"download_location\": \"${DELUGEINCOMINGDIR}\",%" \
       -e "/\"1\": {$/,/}/ s%\"move_completed_path\": .*%\"move_completed_path\": \"${DOWNLOADCOMPLETEDIR}\",%" \
