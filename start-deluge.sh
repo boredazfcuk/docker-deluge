@@ -338,3 +338,4 @@ EnableSSL
 Configure
 InstallnzbToMedia
 SetOwnerAndGroup
+LaunchDeluge
