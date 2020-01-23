@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM alpine:3.10
 MAINTAINER boredazfcuk
 ARG build_dependencies="nano build-base g++ linux-headers autoconf cmake automake py3-pip"
 ARG build_libraries="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev"

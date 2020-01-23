@@ -13,33 +13,34 @@ Initialise(){
    nzb2media_repo="clinton-hall/nzbToMedia"
    nzb2media_base_dir="/nzbToMedia"
    lan_ip="$(hostname -i)"
-   if [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; then echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    ***** GeoIP Country database does not exist, waiting for it to be created ****"; while [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; do sleep 2; done; fi
+   if [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    ***** GeoIP Country database does not exist, waiting for it to be created ****"
+      while [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; do
+         sleep 2
+      done
+   fi
    echo -e "\n"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Starting Deluge v${deluge_version} *****"
    if [ ! -d "${PYTHON_EGG_CACHE}" ]; then mkdir "${PYTHON_EGG_CACHE}"; fi
-   if [ -z "${stack_user}" ]; then echo "$(date '+%Y-%m-%d %H:%M:%S') WARNING: User name not set, defaulting to 'stackman'"; stack_user="stackman"; fi
-   if [ -z "${stack_password}" ]; then echo "$(date '+%Y-%m-%d %H:%M:%S') WARNING: Password not set, defaulting to 'Skibidibbydibyodadubdub'"; stack_password="Skibidibbydibyodadubdub"; fi   
-   if [ -z "${user_id}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] User ID not set, defaulting to '1000'"; user_id="1000"; fi
-   if [ -z "${group}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Group name not set, defaulting to 'group'"; group="group"; fi
-   if [ -z "${group_id}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Group ID not set, defaulting to '1000'"; group_id="1000"; fi
-   if [ -z "${movie_complete_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Category complete path not set for movie, defaulting to /storage/downloads/complete/movie/"; movie_complete_dir="/storage/downloads/complete/movie/"; fi
-   if [ -z "${music_complete_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Category complete path not set for music, defaulting to /storage/downloads/complete/music/"; music_complete_dir="/storage/downloads/complete/music/"; fi
-   if [ -z "${other_complete_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Category complete path not set for other, defaulting to /storage/downloads/complete/other/"; other_complete_dir="/storage/downloads/complete/other/"; fi
-   if [ -z "${tv_complete_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Category complete path not set for tv, defaulting to /storage/downloads/complete/tv/"; tv_complete_dir="/storage/downloads/complete/tv/"; fi
-   if [ -z "${deluge_watch_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Watch path not set, defaulting to /storage/downloads/watch/deluge/"; deluge_watch_dir="/storage/downloads/watch/deluge/"; fi
-   if [ -z "${deluge_file_backup_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Torrent backup path not set, defaulting to /storage/downloads/backup/deluge/"; deluge_file_backup_dir="/storage/downloads/backup/deluge/"; fi
-   if [ -z "${deluge_incoming_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Download path not set, defaulting to /storage/downloads/incoming/deluge/"; deluge_incoming_dir="/storage/downloads/incoming/deluge/"; fi
-   if [ -z "${download_complete_dir}" ]; then echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Download complete path not set, defaulting to /storage/downloads/complete/"; download_complete_dir="/storage/downloads/complete/"; fi
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local user: ${stack_user}:${user_id}"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local group: ${group}:${group_id}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local user: ${stack_user:=stackman}:${user_id:=1000}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Password: ${stack_password:=Skibidibbydibyodadubdub}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local group: ${deluge_group:=deluge}:${deluge_group_id:=1000}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Movie complete directory: ${movie_complete_dir:=/storage/downloads/complete/movie/}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Music complete directory: ${music_complete_dir:=/storage/downloads/complete/music/}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] TV complete directory: ${tv_complete_dir:=/storage/downloads/complete/tv/}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Other downloads complete directory: ${other_complete_dir:=/storage/downloads/complete/other/}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Watch directory: ${deluge_watch_dir:=/storage/downloads/watch/deluge/}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Torrent file backup directory: ${deluge_file_backup_dir:=/storage/downloads/backup/deluge/}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Download directory: ${deluge_incoming_dir:=/storage/downloads/incoming/deluge/}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Download complete directory: ${download_complete_dir:=/storage/downloads/complete/}"
    deluge_abs_path_watch_dir="${deluge_watch_dir%/}"
 }
 
 CreateGroup(){
-   if [ -z "$(getent group "${group}" | cut -d: -f3)" ]; then
+   if [ -z "$(getent group "${deluge_group}" | cut -d: -f3)" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Group ID available, creating group"
-      addgroup -g "${group_id}" "${group}"
-   elif [ ! "$(getent group "${group}" | cut -d: -f3)" = "${group_id}" ]; then
+      addgroup -g "${deluge_group_id}" "${deluge_group}"
+   elif [ ! "$(getent group "${deluge_group}" | cut -d: -f3)" = "${deluge_group_id}" ]; then
       echo "$(date '+%H:%M:%S') [ERROR   ][deluge.launcher.docker        :${program_id}] Group group_id mismatch - exiting"
       exit 1
    fi
@@ -48,7 +49,7 @@ CreateGroup(){
 CreateUser(){
    if [ -z "$(getent passwd "${stack_user}" | cut -d: -f3)" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User ID available, creating user"
-      adduser -s /bin/ash -D -G "${group}" -u "${user_id}" "${stack_user}"
+      adduser -s /bin/ash -D -G "${deluge_group}" -u "${user_id}" "${stack_user}"
    elif [ ! "$(getent passwd "${stack_user}" | cut -d: -f3)" = "${user_id}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User ID already in use - exiting"
       exit 1
@@ -59,13 +60,13 @@ CreateLogFile(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create log directory and daemon log file"
    mkdir -p "${log_dir}"
    touch "${log_dir}/${log_file_name}"
-   chown -R "${stack_user}":"${group}" "${log_dir}"
+   chown -R "${stack_user}":"${deluge_group}" "${log_dir}"
 }
 
 FirstRun(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** First run detected, creating configuration *****"
    find "${config_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${config_dir}" ! -group "${group}" -exec chgrp "${group}" {} \;
+   find "${config_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
    if [ ! -f "${log_dir}/${log_file_name}" ]; then CreateLogFile; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user} to generate default configuration"
    su "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_dir}/${log_file_name} --loglevel none"
@@ -156,28 +157,32 @@ FirstRun(){
 EnableSSL(){
    if [ ! -d "${config_dir}/https" ]; then
       mkdir -p "${config_dir}/https"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure HTTPS"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Initialise HTTPS"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate server key"
       openssl ecparam -genkey -name secp384r1 -out "${config_dir}/https/deluge.key"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate request"
       openssl req -new -subj "/C=NA/ST=Global/L=Global/O=Deluge/OU=Deluge/CN=Deluge/" -key "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.csr"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate"
       openssl x509 -req -sha256 -days 3650 -in "${config_dir}/https/deluge.csr" -signkey "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.crt" >/dev/null 2>&1
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable HTTPS"
-      sed -i -e "s%\"pkey\": \".*%\"pkey\": \"${config_dir}\/https\/deluge.key\",%" \
+   fi
+   if [ -f "${config_dir}/https/deluge.key" ] && [ -f "${config_dir}/https/deluge.crt" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Deluge to use HTTPS"
+      sed -i \
+         -e "s%\"pkey\": \".*%\"pkey\": \"${config_dir}\/https\/deluge.key\",%" \
          -e "s%\"cert\": \".*%\"cert\": \"${config_dir}\/https\/deluge.crt\",%" \
-         -e "s%\"https\": .*%\"https\": true,%" "${config_dir}/web.conf"
+         -e "s%\"https\": .*%\"https\": true,%" \
+         "${config_dir}/web.conf"
    fi
 }
 
 Configure(){
    sleep 5
    if [ ! -f "${log_dir}/${log_file_name}" ]; then CreateLogFile; fi
-   if [ ! -z  "$(ip a | grep tun. )" ]; then
+   if [  "$(ip a | grep tun. )" ]; then
       vpn_ip="$(ip a | grep tun.$ | awk '{print $2}')"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel adapter detected, binding daemon to ${vpn_ip}"
    fi
-   if [ ! -z "${vpn_ip}" ]; then
+   if [ "${vpn_ip}" ]; then
       vpn_adapter="$(ip a | grep tun.$ | awk '{print $7}')"
       sed -i \
          -e "s/\"listen_interface\": .*,/\"listen_interface\": \"${vpn_ip}\",/" \
@@ -230,7 +235,7 @@ InstallnzbToMedia(){
    if [ ! -d "${nzb2media_base_dir}" ]; then
       mkdir -p "${nzb2media_base_dir}"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ${nzb2media_repo} not detected, installing..."
-      chown "${stack_user}":"${group}" "${nzb2media_base_dir}"
+      chown "${stack_user}":"${deluge_group}" "${nzb2media_base_dir}"
       cd "${nzb2media_base_dir}"
       su "${stack_user}" -c "git clone --quiet --branch master https://github.com/${nzb2media_repo}.git ${nzb2media_base_dir}"
       if [ ! -f "${nzb2media_base_dir}/autoProcessMedia.cfg" ]; then
@@ -240,6 +245,14 @@ InstallnzbToMedia(){
       sed -i \
          -e "/^\[General\]/,/^\[.*\]/ s%auto_update =.*%auto_update = 1%" \
          -e "/^\[General\]/,/^\[.*\]/ s%git_path =.*%git_path = /usr/bin/git%" \
+         -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
+         -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
+         -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
+         -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
+         -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move-sym%" \
+         -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
+         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
+         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
          -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
          -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
          -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
@@ -258,7 +271,7 @@ InstallnzbToMedia(){
       -e "/^\[Torrent\]/,/^\[.*\]/ s%default_downloadDirectory =.*%default_downloadDirectory = ${other_complete_dir}%" \
       "${nzb2media_base_dir}/autoProcessMedia.cfg"
 
-   if [ ! -z "${couchpotato_enabled}" ]; then
+   if [ "${couchpotato_enabled}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia CouchPotato settings"
       sed -i \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -269,7 +282,7 @@ InstallnzbToMedia(){
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /couchpotato%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
    fi
-   if [ ! -z "${sickgear_enabled}" ]; then
+   if [ "${sickgear_enabled}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia SickGear settings"
       sed -i \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -281,7 +294,7 @@ InstallnzbToMedia(){
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /sickgear%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
    fi
-   if [ ! -z "${headphones_enabled}" ]; then
+   if [ "${headphones_enabled}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia Headphones settings"
       sed -i \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -297,15 +310,15 @@ InstallnzbToMedia(){
 SetOwnerAndGroup(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Correct owner and group of application files, if required"
    find "${nzb2media_base_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${nzb2media_base_dir}" ! -group "${group}" -exec chgrp "${group}" {} \;
+   find "${nzb2media_base_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
    find "${PYTHON_EGG_CACHE}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${PYTHON_EGG_CACHE}" ! -group "${group}" -exec chgrp "${group}" {} \;
+   find "${PYTHON_EGG_CACHE}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
    find "${config_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${config_dir}" ! -group "${group}" -exec chgrp "${group}" {} \;
+   find "${config_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
    find "${log_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${log_dir}" ! -group "${group}" -exec chgrp "${group}" {} \;
+   find "${log_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
    find "${python_packages}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${python_packages}" ! -group "${group}" -exec chgrp "${group}" {} \;
+   find "${python_packages}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
 }
 
 LaunchDeluge(){
@@ -325,4 +338,3 @@ EnableSSL
 Configure
 InstallnzbToMedia
 SetOwnerAndGroup
-LaunchDeluge
