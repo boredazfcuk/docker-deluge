@@ -90,6 +90,7 @@ FirstRun(){
    sed -i \
       -e "s%\"language\": \".*%\"language\": \"en_GB\",%" \
       -e "s%\"first_login\": .*%\"first_login\": false,%" \
+      -e "s%\"show_session_speed\": .*%\"show_session_speed\": true,%" \
       -e "s%\"default_daemon\": \".*%\"default_daemon\": \"${daemon_user_id}\",%" \
       "${config_dir}/web.conf"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set listening port to 57700"
@@ -146,11 +147,6 @@ FirstRun(){
    sed -i \
       -e "s%\"\",%\"$(head /dev/urandom | tr -dc a-f0-9 | head -c40)\",%" \
       "${config_dir}/execute.conf"
-   echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set WebUI password to \x27${stack_password}\x27"
-   password_sha1_hash="$(echo -n "$(grep pwd_salt ${config_dir}/web.conf | awk '{print $2}' | sed 's/[^[:alnum:]]//g')${stack_password}" | sha1sum | awk '{print $1}')"
-   sed -i \
-      -e "s%\"pwd_sha1\": \".*%\"pwd_sha1\": \"${password_sha1_hash}\",%" \
-      "${config_dir}/web.conf"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** First run configuration complete *****"
 }
 
@@ -177,6 +173,30 @@ EnableSSL(){
 
 Configure(){
    sleep 5
+   echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set WebUI password to \x27${stack_password}\x27"
+   stack_password_sha1_hash="$(echo -n "$(grep pwd_salt ${config_dir}/web.conf | awk '{print $2}' | sed 's/[^[:alnum:]]//g')${stack_password}" | sha1sum | awk '{print $1}')"
+   sed -i \
+      -e "s%\"pwd_sha1\": \".*%\"pwd_sha1\": \"${stack_password_sha1_hash}\",%" \
+      "${config_dir}/web.conf"
+
+   echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set daemon username \x27${stack_user}\x27 and password \x27${stack_password}\x27"
+   if [ "$(grep -c "${stack_user}" "${config_dir}/auth")" = 0 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User does not exist, creating user ${stack_user}"
+      echo "${stack_user}:${stack_password}:10" >> "${config_dir}/auth"
+   else
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User exists, checking password"
+      current_password="$(grep "${stack_user}" "${config_dir}/auth" | cut -d':' -f2)"
+      if [ "${current_password}" = "${stack_password}" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User exists and password matches"
+      else
+         echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Credentials do not match. Password for user has been changed. Removing invalid credentials"
+         sed -i \
+            -e "/${stack_user}/d" \
+            "${config_dir}/web.conf"
+         echo -e "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Adding user ${stack_user} with password \x27${stack_password}\x27"
+         echo "${stack_user}:${stack_password}:10" >> "${config_dir}/auth"
+      fi
+   fi
    if [ ! -f "${log_dir}/${log_file_name}" ]; then CreateLogFile; fi
    if [  "$(ip a | grep tun. )" ]; then
       vpn_ip="$(ip a | grep tun.$ | awk '{print $2}')"
