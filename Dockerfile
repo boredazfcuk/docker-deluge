@@ -3,7 +3,7 @@ MAINTAINER boredazfcuk
 ARG build_dependencies="nano build-base g++ linux-headers autoconf cmake automake py3-pip"
 ARG build_libraries="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev"
 ARG nzb2media_build_dependencies="python3 git libgomp ffmpeg"
-ARG app_dependencies="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib openssl"
+ARG app_dependencies="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib openssl wget"
 ARG pip_dependencies="geoip bencode ply slimit"
 ARG nzb2media_repo="clinton-hall/nzbToMedia"
 ARG parchive_repo="Parchive/par2cmdline"
@@ -64,7 +64,7 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Stage boost libraries" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract ${rasterbar_repo}" && \
    cd "${libtorrent_source}" && \
    libtorrent_latest_download_url="$(wget -qO- https://api.github.com/repos/arvidn/libtorrent/releases/latest | grep browser_download_url | grep ".tar" | awk -F'"' '{print $4}')" && \
-   libtorrent_latest_file_name="$(wget -qO- "https://api.github.com/repos/${rasterbar_repo}/releases/latest" | grep name | tail -n1 | awk -F'"' '{print $4}')" && \
+   libtorrent_latest_file_name="$(basename "${libtorrent_latest_download_url}")" && \
    wget -q "${libtorrent_latest_download_url}" && \
    tar xvf "${libtorrent_source}/${libtorrent_latest_file_name}" -C "${libtorrent_source}" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Build and install libtorrent libraries" && \
@@ -101,14 +101,14 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Clean Up" && \
    ln -s "/usr/bin/python${python_major_version}" "/usr/bin/python" && \
    PATH="${old_path}"
 
-COPY start-deluge.sh /usr/local/bin/start-deluge.sh
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY healthcheck.sh /usr/local/bin/healthcheck.sh
 COPY plugins/autoadd.conf "${config_dir}/autoadd.conf"
 COPY plugins/execute.conf "${config_dir}/execute.conf"
 COPY plugins/label.conf "${config_dir}/label.conf"
 
 RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script and create python link" && \
-   chmod +x /usr/local/bin/start-deluge.sh /usr/local/bin/healthcheck.sh && \
+   chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD COMPLETE *****"
 
 HEALTHCHECK --start-period=30s --interval=1m --timeout=30s \
@@ -116,4 +116,4 @@ HEALTHCHECK --start-period=30s --interval=1m --timeout=30s \
 
 VOLUME "${config_dir}"
 
-CMD /usr/local/bin/start-deluge.sh
+ENTRYPOINT /usr/local/bin/entrypoint.sh

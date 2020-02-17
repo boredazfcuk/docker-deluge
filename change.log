@@ -1,0 +1,11 @@
+20200209
+
+ - Change: Install apk version of wget as BusyBox versions isn't closing SSL connections correctly and this is creating lots of defunct connections
+
+20200207
+
+ - Change: Changed from CMD based launching to ENTRYPOINT
+
+20200208
+ - Change: Changed log file name, changed variables around it and way the file is created
+ - Change: Launch using exec, so process takes over parent's PID

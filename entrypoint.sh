@@ -5,9 +5,9 @@ Initialise(){
    padding="    "
    program_id=$$
    program_id="${program_id:0:4}${padding:0:$((4 - ${#program_id}))}"
-   log_dir="/var/tmp/deluge"
-   log_file_name="deluge-daemon.log"
    deluge_version="$(usr/bin/deluge --version | grep deluge | awk '{print $2}')"
+   python_version="$(python3 --version | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}')"
+   libtorrent_version="$(python3 -c "import libtorrent; print (libtorrent.__version__)")"
    python_major_version="$(python3 --version | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}')"
    python_packages="/usr/lib/python${python_major_version}/site-packages"
    nzb2media_repo="clinton-hall/nzbToMedia"
@@ -20,8 +20,11 @@ Initialise(){
       done
    fi
    echo -e "\n"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Starting Deluge v${deluge_version} *****"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Configuring Deluge container launch environment *****"
    if [ ! -d "${PYTHON_EGG_CACHE}" ]; then mkdir "${PYTHON_EGG_CACHE}"; fi
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Deluge version: ${deluge_version}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Python version ${python_version}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] libtorrent-rasterbar version: ${libtorrent_version}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local user: ${stack_user:=stackman}:${user_id:=1000}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Password: ${stack_password:=Skibidibbydibyodadubdub}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local group: ${deluge_group:=deluge}:${deluge_group_id:=1000}"
@@ -34,6 +37,8 @@ Initialise(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Download directory: ${deluge_incoming_dir:=/storage/downloads/incoming/deluge/}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Download complete directory: ${download_complete_dir:=/storage/downloads/complete/}"
    deluge_abs_path_watch_dir="${deluge_watch_dir%/}"
+   log_file="${config_dir}/logs/deluge-daemon.log"
+   export log_file
 }
 
 CreateGroup(){
@@ -57,28 +62,56 @@ CreateUser(){
 }
 
 CreateLogFile(){
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create log directory and daemon log file"
-   mkdir -p "${log_dir}"
-   touch "${log_dir}/${log_file_name}"
-   chown -R "${stack_user}":"${deluge_group}" "${log_dir}"
+   if [ ! -d "$(dirname ${log_file})" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create log directory: $(dirname ${log_file})"
+      mkdir -p "$(dirname ${log_file})"
+   fi
+   if [ ! -f "${log_file}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create daemon log file: ${log_file}"
+      touch "${log_file}"
+      chown -R "${stack_user}":"${deluge_group}" "$(dirname ${log_file})"
+   fi
+}
+
+SetCredentials(){
+   echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set daemon username \x27${stack_user}\x27 and password \x27${stack_password}\x27"
+   if [ ! -f "${config_dir}/auth" ] || [ "$(grep -c "${stack_user}" "${config_dir}/auth")" = 0 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User does not exist, creating user ${stack_user}"
+      echo "${stack_user}:${stack_password}:10" >> "${config_dir}/auth"
+   else
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User exists - checking credentials"
+      current_password="$(grep "${stack_user}" "${config_dir}/auth" | cut -d':' -f2)"
+      if [ "${current_password}" = "${stack_password}" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User credentials match"
+      else
+         echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] User credentials do not match. Password for user has been changed. Removing invalid credentials"
+         sed -i \
+            -e "/${stack_user}/d" \
+            "${config_dir}/web.conf"
+         echo -e "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Adding user ${stack_user} with password \x27${stack_password}\x27"
+         echo "${stack_user}:${stack_password}:10" >> "${config_dir}/auth"
+      fi
+   fi
 }
 
 FirstRun(){
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** First run detected, creating configuration *****"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** First run detected, creating default configuration *****"
+   SetCredentials
    find "${config_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
    find "${config_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
-   if [ ! -f "${log_dir}/${log_file_name}" ]; then CreateLogFile; fi
+   if [ ! -f "${log_file}" ]; then CreateLogFile; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user} to generate default configuration"
-   su "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_dir}/${log_file_name} --loglevel none"
+   su "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_file} --loglevel none"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge as ${stack_user} to set WebUI as default"
+   su "${stack_user}" -c "/usr/bin/deluge --config ${config_dir} --set-default-ui web --loglevel none"
    sleep 5
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable AutoAdd, Blocklist, Execute, Label & Scheduler plugins"
    /usr/bin/deluge-console -U localclient -P "$(grep ^localclient ${config_dir}/auth | cut -d: -f2)" plugin --enable AutoAdd Blocklist Execute Label Scheduler
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Start Deluge webui as ${stack_user} to generate default configuration"
    su "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --loglevel none"
    sleep 10
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Stop Deluge daemon and webui to make configuration changes"
-   pkill deluged
-   pkill deluge-web
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Reload Deluge launch environment"
+   pkill deluge
    sleep 5
    if [ -f "${config_dir}/session.state" ] && [ ! -f "${config_dir}/session.state.bak" ]; then
       cp -rp "${config_dir}/session.state" "${config_dir}/session.state.bak"
@@ -147,7 +180,7 @@ FirstRun(){
    sed -i \
       -e "s%\"\",%\"$(head /dev/urandom | tr -dc a-f0-9 | head -c40)\",%" \
       "${config_dir}/execute.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** First run configuration complete *****"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Creation of default configuration complete *****"
 }
 
 EnableSSL(){
@@ -178,26 +211,8 @@ Configure(){
    sed -i \
       -e "s%\"pwd_sha1\": \".*%\"pwd_sha1\": \"${stack_password_sha1_hash}\",%" \
       "${config_dir}/web.conf"
-
-   echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set daemon username \x27${stack_user}\x27 and password \x27${stack_password}\x27"
-   if [ "$(grep -c "${stack_user}" "${config_dir}/auth")" = 0 ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User does not exist, creating user ${stack_user}"
-      echo "${stack_user}:${stack_password}:10" >> "${config_dir}/auth"
-   else
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User exists, checking password"
-      current_password="$(grep "${stack_user}" "${config_dir}/auth" | cut -d':' -f2)"
-      if [ "${current_password}" = "${stack_password}" ]; then
-         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User exists and password matches"
-      else
-         echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Credentials do not match. Password for user has been changed. Removing invalid credentials"
-         sed -i \
-            -e "/${stack_user}/d" \
-            "${config_dir}/web.conf"
-         echo -e "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] Adding user ${stack_user} with password \x27${stack_password}\x27"
-         echo "${stack_user}:${stack_password}:10" >> "${config_dir}/auth"
-      fi
-   fi
-   if [ ! -f "${log_dir}/${log_file_name}" ]; then CreateLogFile; fi
+   if [ ! -f "${log_file}" ]; then CreateLogFile; fi
+   if [ ! -f "${config_dir}/auth" ]; then SetCredentials; fi
    if [  "$(ip a | grep tun. )" ]; then
       vpn_ip="$(ip a | grep tun.$ | awk '{print $2}')"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel adapter detected, binding daemon to ${vpn_ip}"
@@ -296,10 +311,10 @@ InstallnzbToMedia(){
       sed -i \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%host =.*%host = $(hostname -i)%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%port =.*%port = 5050%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /couchpotato%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
    fi
    if [ "${sickgear_enabled}" ]; then
@@ -311,7 +326,7 @@ InstallnzbToMedia(){
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%port =.*%port = 8081%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%fork =.*%fork = sickgear%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /sickgear%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
    fi
    if [ "${headphones_enabled}" ]; then
@@ -322,7 +337,7 @@ InstallnzbToMedia(){
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%port =.*%port = 8181%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /headphones%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
    fi
 }
@@ -335,18 +350,20 @@ SetOwnerAndGroup(){
    find "${PYTHON_EGG_CACHE}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
    find "${config_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
    find "${config_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
-   find "${log_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${log_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
    find "${python_packages}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
    find "${python_packages}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
 }
 
 LaunchDeluge(){
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user}"
-   su -pm "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_dir}/${log_file_name} --loglevel warning"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Start Deluge webui as ${stack_user}"
-   su "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --loglevel warning --do-not-daemonize"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Starting Deluge v${deluge_version} *****"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Configuration of Deluge container launch environment complete *****"
+   if [ -z "${1}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user}"
+      "$(which su)" -p "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_file} --loglevel warning"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge webui as ${stack_user}"
+      exec "$(which su)" -p "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --logfile ${log_file} --loglevel warning --do-not-daemonize"
+   else
+      exec "$@"
+   fi
 }
 
 ##### Script #####
