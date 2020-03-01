@@ -1,3 +1,11 @@
+20200223
+
+ - Change: Major rework. Split the large Configure() function into smaller parts.
+
+20200222
+
+ - Change: Adjusted the logic that installs nzbToMedia so that it can recover from a failed install
+
 20200209
 
  - Change: Install apk version of wget as BusyBox versions isn't closing SSL connections correctly and this is creating lots of defunct connections

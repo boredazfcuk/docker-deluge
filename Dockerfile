@@ -29,7 +29,7 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install build dependencies" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install build libraries" && \
    apk add --no-cache --virtual=build-libs ${build_libraries} && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install pip dependencies" && \
-   pip3 install --no-cache-dir --upgrade pip ${pip_dependencies} && \
+   pip3 install --upgrade pip --no-cache-dir ${pip_dependencies} && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Create user python config" && \
    python_includes="$(python3-config --includes | awk '{print $2}')" && \
    python_includes="${python_includes//-I/}" && \

@@ -13,6 +13,7 @@ Initialise(){
    nzb2media_repo="clinton-hall/nzbToMedia"
    nzb2media_base_dir="/nzbToMedia"
    lan_ip="$(hostname -i)"
+   log_dir="${config_dir}/logs"
    if [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; then
       echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    ***** GeoIP Country database does not exist, waiting for it to be created ****"
       while [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; do
@@ -37,8 +38,6 @@ Initialise(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Download directory: ${deluge_incoming_dir:=/storage/downloads/incoming/deluge/}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Download complete directory: ${download_complete_dir:=/storage/downloads/complete/}"
    deluge_abs_path_watch_dir="${deluge_watch_dir%/}"
-   log_file="${config_dir}/logs/deluge-daemon.log"
-   export log_file
 }
 
 CreateGroup(){
@@ -61,15 +60,177 @@ CreateUser(){
    fi
 }
 
-CreateLogFile(){
-   if [ ! -d "$(dirname ${log_file})" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create log directory: $(dirname ${log_file})"
-      mkdir -p "$(dirname ${log_file})"
+CreateLogFiles(){
+   if [ ! -d "${log_dir}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create log directory: ${log_dir}"
+      mkdir -p "${log_dir}"
+      chown "${stack_user}":"${deluge_group}" "${log_dir}"
    fi
-   if [ ! -f "${log_file}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create daemon log file: ${log_file}"
-      touch "${log_file}"
-      chown -R "${stack_user}":"${deluge_group}" "$(dirname ${log_file})"
+   if [ ! -f "${log_dir}/daemon.log" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create daemon log file: ${log_dir}/daemon.log"
+      touch "${log_dir}/daemon.log"
+      chown "${stack_user}":"${deluge_group}" "${log_dir}/daemon.log"
+   fi
+   if [ ! -f "${log_dir}/web.log" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create web log file: ${log_dir}/web.log"
+      touch "${log_dir}/web.log"
+      chown "${stack_user}":"${deluge_group}" "${log_dir}/web.log"
+   fi
+}
+
+CreateDefaultDaemonConfig(){
+   if [ ! -f "${config_dir}/core.conf" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** First run detected, creating default configuration *****"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon to generate default daemon configuration"
+      /usr/bin/deluged --config "${config_dir}" --logfile "${log_dir}/daemon.log" --loglevel info
+      sleep 10
+      pkill deluged
+      sleep 2
+      pkill deluged
+      sleep 2
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Creation of default daemon configuration complete *****"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set listening port to 57700"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set outgoing port range to 58800-59900"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set torrent backup location"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Ignore slow torrents"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set download location"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Pre-allocate storage"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Prioritise first and last pieces"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Queue new to top"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set completed download location"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Disable UPnP"
+      sed -i \
+         -e "/listen_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+,$\)/\157700,/1" \
+         -e "/listen_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+$\)/\157700/1" \
+         -e "/outgoing_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+,$\)/\158800,/1" \
+         -e "/outgoing_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+$\)/\159900/1" \
+         -e "s%\"random_outgoing_ports\": .*%\"random_outgoing_ports\": false,%" \
+         -e "s%\"random_port\": .*%\"random_port\": false,%" \
+         -e "s%\"copy_torrent_file\": .*%\"copy_torrent_file\": true,%" \
+         -e "s%\"dont_count_slow_torrents\": .*%\"dont_count_slow_torrents\": true,%" \
+         -e "s%\"move_completed\": .*%\"move_completed\": true,%" \
+         -e "s%\"pre_allocate_storage\": .*%\"pre_allocate_storage\": true,%" \
+         -e "s%\"prioritize_first_last_pieces\": .*%\"prioritize_first_last_pieces\": true,%" \
+         -e "s%\"queue_new_to_top\": .*%\"queue_new_to_top\": false,%" \
+         -e "s%\"upnp\": .*%\"upnp\": false,%" \
+         "${config_dir}/core.conf"
+   fi
+}
+
+CreateDefaultWebConfig(){
+   if [ ! -f "${config_dir}/web.conf" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Start Deluge webui to generate default configuration"
+      /usr/bin/deluge-web --config "${config_dir}" --logfile "${log_dir}/web.log" --loglevel info
+      sleep 10
+      pkill deluge-web
+      sleep 2
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Creation of default daemon configuration complete *****"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Reload Deluge launch environment"
+      daemon_user_id="$(grep -A2 hosts "${config_dir}/hostlist.conf" | tail -n1 | tr "[:upper:]" "[:lower:]" | sed 's/[^0-9a-f]*//g')"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set default language to English to suppress error"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Disable first login option"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable web autoconnect to daemon"
+      sed -i \
+         -e "s%\"language\": \".*%\"language\": \"en_GB\",%" \
+         -e "s%\"first_login\": .*%\"first_login\": false,%" \
+         -e "s%\"show_session_speed\": .*%\"show_session_speed\": true,%" \
+         -e "s%\"default_daemon\": \".*%\"default_daemon\": \"${daemon_user_id}\",%" \
+         "${config_dir}/web.conf"
+      echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set WebUI password to \x27${stack_password}\x27"
+      stack_password_sha1_hash="$(echo -n "$(grep pwd_salt ${config_dir}/web.conf | awk '{print $2}' | sed 's/[^[:alnum:]]//g')${stack_password}" | sha1sum | awk '{print $1}')"
+      sed -i \
+         -e "s%\"pwd_sha1\": \".*%\"pwd_sha1\": \"${stack_password_sha1_hash}\",%" \
+         "${config_dir}/web.conf"
+   fi
+}
+
+ConfigurePlugins(){
+   if [ ! -f "${config_dir}/.pythoneggcache" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon to install plugins"
+      /usr/bin/deluged --config "${config_dir}" --logfile "${log_dir}/daemon.log" --loglevel info
+      sleep 10
+      if [ ! -d "${config_dir}/.pythoneggcache/AutoAdd*" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Install AutoAdd plugin"
+         /usr/bin/deluge-console -U localclient -P "$(grep ^localclient ${config_dir}/auth | cut -d: -f2)" plugin --enable AutoAdd
+      fi
+      if [ ! -d "${config_dir}/.pythoneggcache/Blocklist*" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Install Blocklist plugin"
+         /usr/bin/deluge-console -U localclient -P "$(grep ^localclient ${config_dir}/auth | cut -d: -f2)" plugin --enable Blocklist
+         sleep 5
+      fi
+      if [ ! -d "${config_dir}/.pythoneggcache/Execute*" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Install Execute plugin"
+         /usr/bin/deluge-console -U localclient -P "$(grep ^localclient ${config_dir}/auth | cut -d: -f2)" plugin --enable Execute
+      fi
+      if [ ! -d "${config_dir}/.pythoneggcache/Label*" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Install Label plugin"
+         /usr/bin/deluge-console -U localclient -P "$(grep ^localclient ${config_dir}/auth | cut -d: -f2)" plugin --enable Label
+      fi
+      if [ ! -d "${config_dir}/.pythoneggcache/Scheduler*" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Install Scheduler plugin"
+         /usr/bin/deluge-console -U localclient -P "$(grep ^localclient ${config_dir}/auth | cut -d: -f2)" plugin --enable Scheduler
+      fi
+      sleep 10
+      pkill deluged
+      sleep 2
+      pkill deluged
+      sleep 2
+   fi
+   if [ "$(grep -c '\"enabled_plugins\": \[],' "${config_dir}/web.conf")" -eq 1 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enabled plugins onfigure plugins"
+      sed -i \
+         -e "/enabled_plugins/ s/^\(\s\+\)\(\"enabled_plugins\": \[\)\(\],\)/\1\2\n\1\3/" \
+         "${config_dir}/web.conf"
+      sed -i \
+         -e "/enabled_plugins/a \"AutoAdd\"," \
+         -e "/enabled_plugins/a \"Blocklist\"," \
+         -e "/enabled_plugins/a \"Execute\"," \
+         -e "/enabled_plugins/a \"Label\"," \
+         -e "/enabled_plugins/a \"Scheduler\"" \
+         "${config_dir}/web.conf"
+      sed -i \
+         -e "s/^\(\"AutoAdd\",\)/        \1/" \
+         -e "s/^\(\"Blocklist\",\)/        \1/" \
+         -e "s/^\(\"Execute\",\)/        \1/" \
+         -e "s/^\(\"Label\",\)/        \1/" \
+         -e "s/^\(\"Scheduler\"\)/        \1/" \
+         "${config_dir}/web.conf"
+   fi
+   if [ "$(grep -c '\"url\": \"\",' "${config_dir}/blocklist.conf")" -eq 1 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Blocklist plugin"
+      sed -i \
+         -e "s%\"list_type\": .*%\"list_type\": \"SafePeer\",%" \
+         -e "s%\"list_compression\": .*%\"list_compression\": \"GZip\",%" \
+         -e "s%\"load_on_start\": .*%\"load_on_start\": true,%" \
+         -e "s%\"url\": .*%\"url\": \"http://john.bitsurge.net/public/biglist.p2p.gz\",%" \
+         "${config_dir}/blocklist.conf"
+   fi
+   if [ "$(grep -c '\"\",' "${config_dir}/execute.conf")" -eq 1 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Execute plugin"
+      sed -i \
+         -e "s%\"\",%\"$(head /dev/urandom | tr -dc a-f0-9 | head -c40)\",%" \
+         "${config_dir}/execute.conf"
+   fi
+}
+
+EnableSSL(){
+   if [ ! -d "${config_dir}/https" ]; then
+      mkdir -p "${config_dir}/https"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Initialise HTTPS"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate server key"
+      openssl ecparam -genkey -name secp384r1 -out "${config_dir}/https/deluge.key"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate request"
+      openssl req -new -subj "/C=NA/ST=Global/L=Global/O=Deluge/OU=Deluge/CN=Deluge/" -key "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.csr"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate"
+      openssl x509 -req -sha256 -days 3650 -in "${config_dir}/https/deluge.csr" -signkey "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.crt" >/dev/null 2>&1
+   fi
+   if [ -f "${config_dir}/https/deluge.key" ] && [ -f "${config_dir}/https/deluge.crt" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Deluge to use HTTPS"
+      sed -i \
+         -e "s%\"pkey\": \".*%\"pkey\": \"${config_dir}\/https\/deluge.key\",%" \
+         -e "s%\"cert\": \".*%\"cert\": \"${config_dir}\/https\/deluge.crt\",%" \
+         -e "s%\"https\": .*%\"https\": true,%" \
+         "${config_dir}/web.conf"
    fi
 }
 
@@ -94,137 +255,23 @@ SetCredentials(){
    fi
 }
 
-FirstRun(){
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** First run detected, creating default configuration *****"
-   SetCredentials
-   find "${config_dir}" ! -user "${stack_user}" -exec chown "${stack_user}" {} \;
-   find "${config_dir}" ! -group "${deluge_group}" -exec chgrp "${deluge_group}" {} \;
-   if [ ! -f "${log_file}" ]; then CreateLogFile; fi
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user} to generate default configuration"
-   su "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_file} --loglevel none"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge as ${stack_user} to set WebUI as default"
-   su "${stack_user}" -c "/usr/bin/deluge --config ${config_dir} --set-default-ui web --loglevel none"
-   sleep 5
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable AutoAdd, Blocklist, Execute, Label & Scheduler plugins"
-   /usr/bin/deluge-console -U localclient -P "$(grep ^localclient ${config_dir}/auth | cut -d: -f2)" plugin --enable AutoAdd Blocklist Execute Label Scheduler
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Start Deluge webui as ${stack_user} to generate default configuration"
-   su "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --loglevel none"
-   sleep 10
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Reload Deluge launch environment"
-   pkill deluge
-   sleep 5
-   if [ -f "${config_dir}/session.state" ] && [ ! -f "${config_dir}/session.state.bak" ]; then
-      cp -rp "${config_dir}/session.state" "${config_dir}/session.state.bak"
-   fi
-   daemon_user_id="$(grep -A2 hosts "${config_dir}/hostlist.conf" | tail -n1 | tr "[:upper:]" "[:lower:]" | sed 's/[^0-9a-f]*//g')"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set default language to English to suppress error"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Disable first login option"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable web autoconnect to daemon"
-   sed -i \
-      -e "s%\"language\": \".*%\"language\": \"en_GB\",%" \
-      -e "s%\"first_login\": .*%\"first_login\": false,%" \
-      -e "s%\"show_session_speed\": .*%\"show_session_speed\": true,%" \
-      -e "s%\"default_daemon\": \".*%\"default_daemon\": \"${daemon_user_id}\",%" \
-      "${config_dir}/web.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set listening port to 57700"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set outgoing port range to 58800-59900"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set torrent backup location"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Ignore slow torrents"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set download location"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Pre-allocate storage"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Prioritise first and last pieces"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Queue new to top"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set completed download location"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Disable UPnP"
-   sed -i \
-      -e "/listen_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+,$\)/\157700,/1" \
-      -e "/listen_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+$\)/\157700/1" \
-      -e "/outgoing_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+,$\)/\158800,/1" \
-      -e "/outgoing_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+$\)/\159900/1" \
-      -e "s%\"random_outgoing_ports\": .*%\"random_outgoing_ports\": false,%" \
-      -e "s%\"random_port\": .*%\"random_port\": false,%" \
-      -e "s%\"copy_torrent_file\": .*%\"copy_torrent_file\": true,%" \
-      -e "s%\"dont_count_slow_torrents\": .*%\"dont_count_slow_torrents\": true,%" \
-      -e "s%\"move_completed\": .*%\"move_completed\": true,%" \
-      -e "s%\"pre_allocate_storage\": .*%\"pre_allocate_storage\": true,%" \
-      -e "s%\"prioritize_first_last_pieces\": .*%\"prioritize_first_last_pieces\": true,%" \
-      -e "s%\"queue_new_to_top\": .*%\"queue_new_to_top\": false,%" \
-      -e "s%\"upnp\": .*%\"upnp\": false,%" \
-      "${config_dir}/core.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable plugins"
-   sed -i \
-      -e "/enabled_plugins/ s/^\(\s\+\)\(\"enabled_plugins\": \[\)\(\],\)/\1\2\n\1\3/" \
-      "${config_dir}/web.conf"
-   sed -i \
-      -e "/enabled_plugins/a \"AutoAdd\"," \
-      -e "/enabled_plugins/a \"Blocklist\"," \
-      -e "/enabled_plugins/a \"Execute\"," \
-      -e "/enabled_plugins/a \"Label\"," \
-      -e "/enabled_plugins/a \"Scheduler\"" \
-      "${config_dir}/web.conf"
-   sed -i \
-      -e "s/^\(\"AutoAdd\",\)/        \1/" \
-      -e "s/^\(\"Blocklist\",\)/        \1/" \
-      -e "s/^\(\"Execute\",\)/        \1/" \
-      -e "s/^\(\"Label\",\)/        \1/" \
-      -e "s/^\(\"Scheduler\"\)/        \1/" \
-      "${config_dir}/web.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Blocklist plugin"
-   sed -i \
-      -e "s%\"list_type\": .*%\"list_type\": \"SafePeer\",%" \
-      -e "s%\"list_compression\": .*%\"list_compression\": \"GZip\",%" \
-      -e "s%\"load_on_start\": .*%\"load_on_start\": true,%" \
-      -e "s%\"url\": .*%\"url\": \"http://john.bitsurge.net/public/biglist.p2p.gz\",%" \
-      "${config_dir}/blocklist.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Execute plugin"
-   sed -i \
-      -e "s%\"\",%\"$(head /dev/urandom | tr -dc a-f0-9 | head -c40)\",%" \
-      "${config_dir}/execute.conf"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Creation of default configuration complete *****"
-}
-
-EnableSSL(){
-   if [ ! -d "${config_dir}/https" ]; then
-      mkdir -p "${config_dir}/https"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Initialise HTTPS"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate server key"
-      openssl ecparam -genkey -name secp384r1 -out "${config_dir}/https/deluge.key"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate request"
-      openssl req -new -subj "/C=NA/ST=Global/L=Global/O=Deluge/OU=Deluge/CN=Deluge/" -key "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.csr"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate"
-      openssl x509 -req -sha256 -days 3650 -in "${config_dir}/https/deluge.csr" -signkey "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.crt" >/dev/null 2>&1
-   fi
-   if [ -f "${config_dir}/https/deluge.key" ] && [ -f "${config_dir}/https/deluge.crt" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Deluge to use HTTPS"
-      sed -i \
-         -e "s%\"pkey\": \".*%\"pkey\": \"${config_dir}\/https\/deluge.key\",%" \
-         -e "s%\"cert\": \".*%\"cert\": \"${config_dir}\/https\/deluge.crt\",%" \
-         -e "s%\"https\": .*%\"https\": true,%" \
-         "${config_dir}/web.conf"
-   fi
-}
-
 Configure(){
-   sleep 5
-   echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set WebUI password to \x27${stack_password}\x27"
-   stack_password_sha1_hash="$(echo -n "$(grep pwd_salt ${config_dir}/web.conf | awk '{print $2}' | sed 's/[^[:alnum:]]//g')${stack_password}" | sha1sum | awk '{print $1}')"
-   sed -i \
-      -e "s%\"pwd_sha1\": \".*%\"pwd_sha1\": \"${stack_password_sha1_hash}\",%" \
-      "${config_dir}/web.conf"
-   if [ ! -f "${log_file}" ]; then CreateLogFile; fi
-   if [ ! -f "${config_dir}/auth" ]; then SetCredentials; fi
-   if [  "$(ip a | grep tun. )" ]; then
-      vpn_ip="$(ip a | grep tun.$ | awk '{print $2}')"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel adapter detected, binding daemon to ${vpn_ip}"
-   fi
-   if [ "${vpn_ip}" ]; then
-      vpn_adapter="$(ip a | grep tun.$ | awk '{print $7}')"
+   vpn_adapter="$(ip addr | grep tun.$ | awk '{print $7}')"
+   if [ "${vpn_adapter}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel adapter detected, setting outgoing adapter to ${vpn_adapter}"
       sed -i \
-         -e "s/\"listen_interface\": .*,/\"listen_interface\": \"${vpn_ip}\",/" \
          -e "s/\"outgoing_interface\": .*,/\"outgoing_interface\": \"${vpn_adapter}\",/" \
          "${config_dir}/core.conf"
    else
       echo "$(date '+%H:%M:%S') [ERROR   ][deluge.launcher.docker        :${program_id}] No VPN adapters present. Private connection not available. Exiting"
+      exit 1
+   fi
+   vpn_ip="$(ip addr | grep tun.$ | awk '{print $2}')"
+   if [ "${vpn_ip}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel IP address detected, setting listening interface to ${vpn_adapter}"
+      sed -i \
+         -e "s/\"listen_interface\": .*,/\"listen_interface\": \"${vpn_ip}\",/" \
+         "${config_dir}/core.conf"
    fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Binding WebUI to ${lan_ip}"
    sed -i \
@@ -267,7 +314,11 @@ Configure(){
 }
 
 InstallnzbToMedia(){
-   if [ ! -d "${nzb2media_base_dir}" ]; then
+   if [ ! -f "${nzb2media_base_dir}/nzbToMedia.py" ]; then
+      if [ -d "${nzb2media_base_dir}" ]; then
+         echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Cleaning up previously failed installation"
+         rm -r "${nzb2media_base_dir}"
+      fi
       mkdir -p "${nzb2media_base_dir}"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ${nzb2media_repo} not detected, installing..."
       chown "${stack_user}":"${deluge_group}" "${nzb2media_base_dir}"
@@ -275,70 +326,70 @@ InstallnzbToMedia(){
       su "${stack_user}" -c "git clone --quiet --branch master https://github.com/${nzb2media_repo}.git ${nzb2media_base_dir}"
       if [ ! -f "${nzb2media_base_dir}/autoProcessMedia.cfg" ]; then
          cp "${nzb2media_base_dir}/autoProcessMedia.cfg.spec" "${nzb2media_base_dir}/autoProcessMedia.cfg"
+      else
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Change nzbToMedia default configuration"
+         sed -i \
+            -e "/^\[General\]/,/^\[.*\]/ s%auto_update =.*%auto_update = 1%" \
+            -e "/^\[General\]/,/^\[.*\]/ s%git_path =.*%git_path = /usr/bin/git%" \
+            -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
+            -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
+            -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move-sym%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
+            -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
+            -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
+            -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move-sym%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeUSR =.*%DelugeUSR = localclient%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePWD =.*%DelugePWD = $(grep ^localclient ${config_dir}/auth | cut -d: -f2)%" \
+            "${nzb2media_base_dir}/autoProcessMedia.cfg"
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia download paths"
+         sed -i \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%outputDirectory =.*%outputDirectory = ${other_complete_dir}%" \
+            -e "/^\[Torrent\]/,/^\[.*\]/ s%default_downloadDirectory =.*%default_downloadDirectory = ${other_complete_dir}%" \
+            "${nzb2media_base_dir}/autoProcessMedia.cfg"
+         if [ "${couchpotato_enabled}" ]; then
+            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia CouchPotato settings"
+            sed -i \
+               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
+               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
+               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%host =.*%host = $(hostname -i)%" \
+               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%port =.*%port = 5050%" \
+               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
+               "${nzb2media_base_dir}/autoProcessMedia.cfg"
+         fi
+         if [ "${sickgear_enabled}" ]; then
+            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia SickGear settings"
+            sed -i \
+               -e "/^\[SickBeard\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
+               -e "/^\[SickBeard\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
+               -e "/^\[SickBeard\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
+               -e "/^\[SickBeard\]/,/^\[.*\]/ s%port =.*%port = 8081%" \
+               -e "/^\[SickBeard\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+               -e "/^\[SickBeard\]/,/^\[.*\]/ s%fork =.*%fork = sickgear%" \
+               -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
+               "${nzb2media_base_dir}/autoProcessMedia.cfg"
+         fi
+         if [ "${headphones_enabled}" ]; then
+            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia Headphones settings"
+            sed -i \
+               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
+               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
+               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
+               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%port =.*%port = 8181%" \
+               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
+               "${nzb2media_base_dir}/autoProcessMedia.cfg"
+         fi
       fi
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Change nzbToMedia default configuration"
-      sed -i \
-         -e "/^\[General\]/,/^\[.*\]/ s%auto_update =.*%auto_update = 1%" \
-         -e "/^\[General\]/,/^\[.*\]/ s%git_path =.*%git_path = /usr/bin/git%" \
-         -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
-         -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
-         -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move-sym%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
-         -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
-         -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
-         -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move-sym%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeUSR =.*%DelugeUSR = localclient%" \
-         -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePWD =.*%DelugePWD = $(grep ^localclient ${config_dir}/auth | cut -d: -f2)%" \
-         "${nzb2media_base_dir}/autoProcessMedia.cfg"
-   fi
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia download paths"
-   sed -i \
-      -e "/^\[Torrent\]/,/^\[.*\]/ s%outputDirectory =.*%outputDirectory = ${other_complete_dir}%" \
-      -e "/^\[Torrent\]/,/^\[.*\]/ s%default_downloadDirectory =.*%default_downloadDirectory = ${other_complete_dir}%" \
-      "${nzb2media_base_dir}/autoProcessMedia.cfg"
-
-   if [ "${couchpotato_enabled}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia CouchPotato settings"
-      sed -i \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%host =.*%host = $(hostname -i)%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%port =.*%port = 5050%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
-         "${nzb2media_base_dir}/autoProcessMedia.cfg"
-   fi
-   if [ "${sickgear_enabled}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia SickGear settings"
-      sed -i \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%port =.*%port = 8081%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%fork =.*%fork = sickgear%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
-         "${nzb2media_base_dir}/autoProcessMedia.cfg"
-   fi
-   if [ "${headphones_enabled}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia Headphones settings"
-      sed -i \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%port =.*%port = 8181%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
-         "${nzb2media_base_dir}/autoProcessMedia.cfg"
    fi
 }
 
@@ -356,23 +407,36 @@ SetOwnerAndGroup(){
 
 LaunchDeluge(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Configuration of Deluge container launch environment complete *****"
-   if [ -z "${1}" ]; then
+   if [ -z "$1" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user}"
-      "$(which su)" -p "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_file} --loglevel warning"
+      "$(which su)" -p "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_dir}/daemon.log --loglevel info"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge webui as ${stack_user}"
-      exec "$(which su)" -p "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --logfile ${log_file} --loglevel warning --do-not-daemonize"
+      "$(which su)" -p "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --logfile ${log_dir}/web.log --loglevel info --do-not-daemonize"
    else
       exec "$@"
    fi
+}
+
+LaunchDeluge2(){
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Configuration of Deluge container launch environment complete *****"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user}"
+      /usr/bin/deluged --config ${config_dir} --logfile ${log_dir}/daemon.log --loglevel info
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge webui as ${stack_user}"
+      /usr/bin/deluge-web --config ${config_dir} --logfile ${log_dir}/web.log --loglevel info --do-not-daemonize
 }
 
 ##### Script #####
 Initialise
 CreateGroup
 CreateUser
-if [ ! -f "${config_dir}/web.conf" ]; then FirstRun; fi
+CreateLogFiles
+CreateDefaultDaemonConfig
+CreateDefaultWebConfig
+ConfigurePlugins
 EnableSSL
+SetCredentials
 Configure
 InstallnzbToMedia
 SetOwnerAndGroup
 LaunchDeluge
+#LaunchDeluge2
