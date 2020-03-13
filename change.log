@@ -1,3 +1,7 @@
+20200313
+
+ - Change: Log now displays OS version
+
 20200223
 
  - Change: Major rework. Split the large Configure() function into smaller parts.
