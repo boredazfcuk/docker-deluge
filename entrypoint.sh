@@ -274,6 +274,7 @@ Configure(){
          "${config_dir}/core.conf"
    fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Binding WebUI to ${lan_ip}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Setting web root to /deluge/"
    sed -i \
       -e "s%\"interface\": \".*%\"interface\": \"${lan_ip}\",%" \
       "${config_dir}/web.conf"
@@ -411,18 +412,10 @@ LaunchDeluge(){
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user}"
       "$(which su)" -p "${stack_user}" -c "/usr/bin/deluged --config ${config_dir} --logfile ${log_dir}/daemon.log --loglevel info"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge webui as ${stack_user}"
-      "$(which su)" -p "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --logfile ${log_dir}/web.log --loglevel info --do-not-daemonize"
+      "$(which su)" -p "${stack_user}" -c "/usr/bin/deluge-web --config ${config_dir} --logfile ${log_dir}/web.log --loglevel debug --do-not-daemonize"
    else
       exec "$@"
    fi
-}
-
-LaunchDeluge2(){
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Configuration of Deluge container launch environment complete *****"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon as ${stack_user}"
-      /usr/bin/deluged --config ${config_dir} --logfile ${log_dir}/daemon.log --loglevel info
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge webui as ${stack_user}"
-      /usr/bin/deluge-web --config ${config_dir} --logfile ${log_dir}/web.log --loglevel info --do-not-daemonize
 }
 
 ##### Script #####
@@ -439,4 +432,3 @@ Configure
 InstallnzbToMedia
 SetOwnerAndGroup
 LaunchDeluge
-#LaunchDeluge2
