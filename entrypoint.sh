@@ -23,6 +23,7 @@ Initialise(){
    echo -e "\n"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Configuring Deluge container launch environment *****"
    if [ ! -d "${PYTHON_EGG_CACHE}" ]; then mkdir "${PYTHON_EGG_CACHE}"; fi
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] $(cat /etc/*-release | grep "PRETTY_NAME" | sed 's/PRETTY_NAME=//g' | sed 's/"//g')"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Deluge version: ${deluge_version}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Python version ${python_version}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] libtorrent-rasterbar version: ${libtorrent_version}"
