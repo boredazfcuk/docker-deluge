@@ -20,7 +20,7 @@ Initialise(){
          sleep 2
       done
    fi
-   echo -e "\n"
+   echo
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Configuring Deluge container launch environment *****"
    if [ ! -d "${PYTHON_EGG_CACHE}" ]; then mkdir "${PYTHON_EGG_CACHE}"; fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] $(cat /etc/*-release | grep "PRETTY_NAME" | sed 's/PRETTY_NAME=//g' | sed 's/"//g')"
