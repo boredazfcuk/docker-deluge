@@ -1,3 +1,7 @@
+20200414
+
+ - Change: Health check use of netcat scrapped. Causing log spam on certain containers. Now using netstat to check if listening port open
+
 20200313
 
  - Change: Log now displays OS version
