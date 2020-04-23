@@ -137,11 +137,6 @@ CreateDefaultWebConfig(){
          -e "s%\"show_session_speed\": .*%\"show_session_speed\": true,%" \
          -e "s%\"default_daemon\": \".*%\"default_daemon\": \"${daemon_user_id}\",%" \
          "${config_dir}/web.conf"
-      echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set WebUI password to \x27${stack_password}\x27"
-      stack_password_sha1_hash="$(echo -n "$(grep pwd_salt ${config_dir}/web.conf | awk '{print $2}' | sed 's/[^[:alnum:]]//g')${stack_password}" | sha1sum | awk '{print $1}')"
-      sed -i \
-         -e "s%\"pwd_sha1\": \".*%\"pwd_sha1\": \"${stack_password_sha1_hash}\",%" \
-         "${config_dir}/web.conf"
    fi
 }
 
@@ -254,6 +249,11 @@ SetCredentials(){
          echo "${stack_user}:${stack_password}:10" >> "${config_dir}/auth"
       fi
    fi
+   echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set WebUI password to \x27${stack_password}\x27"
+   stack_password_sha1_hash="$(echo -n "$(grep pwd_salt ${config_dir}/web.conf | awk '{print $2}' | sed 's/[^[:alnum:]]//g')${stack_password}" | sha1sum | awk '{print $1}')"
+   sed -i \
+      -e "s%\"pwd_sha1\": \".*%\"pwd_sha1\": \"${stack_password_sha1_hash}\",%" \
+      "${config_dir}/web.conf"
 }
 
 Configure(){
