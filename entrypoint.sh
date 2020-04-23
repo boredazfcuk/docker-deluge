@@ -373,7 +373,7 @@ N2MCouchPotato(){
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /couchpotato%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%minSize =.*%minSize = 3000%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 1%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 0%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%delete_ignored =.*%delete_ignored = 1%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%watch_dir =.*%watch_dir = ${movie_complete_dir}%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
@@ -392,7 +392,7 @@ N2MSickGear(){
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%fork =.*%fork = sickgear%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /sickgear%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%minSize =.*%minSize = 350%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 1%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 0%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%delete_ignored =.*%delete_ignored = 1%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%watch_dir =.*%watch_dir = ${tv_complete_dir}%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
@@ -410,7 +410,7 @@ N2MHeadphones(){
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /headphones%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%minSize =.*%minSize = 10%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 1%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 0%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%delete_ignored =.*%delete_ignored = 1%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%watch_dir =.*%watch_dir = ${music_complete_dir}%" \
          "${nzb2media_base_dir}/autoProcessMedia.cfg"
