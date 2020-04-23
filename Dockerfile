@@ -3,7 +3,7 @@ MAINTAINER boredazfcuk
 ARG build_dependencies="nano build-base g++ linux-headers autoconf cmake automake py3-pip"
 ARG build_libraries="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev"
 ARG nzb2media_build_dependencies="python3 git libgomp ffmpeg"
-ARG app_dependencies="tzdata libstdc++ geoip unrar unzip p7zip gettext zlib openssl wget"
+ARG app_dependencies="tzdata ca-certificates libstdc++ geoip unrar unzip p7zip gettext zlib openssl wget"
 ARG pip_dependencies="geoip bencode ply slimit"
 ARG nzb2media_repo="clinton-hall/nzbToMedia"
 ARG parchive_repo="Parchive/par2cmdline"

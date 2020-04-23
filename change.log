@@ -1,3 +1,11 @@
+20200422
+
+ - Change: Script now requests a forwarded port from Private Internet Access and forwards it to the Deluge torrent port
+
+20200421
+
+ - Change: Broke up nzbToMedia configuration function. Now installs in one function, configures general settings in another. External apps have a function each too.
+
 20200414
 
  - Change: Health check use of netcat scrapped. Causing log spam on certain containers. Now using netstat to check if listening port open

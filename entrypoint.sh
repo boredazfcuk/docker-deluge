@@ -146,7 +146,7 @@ CreateDefaultWebConfig(){
 }
 
 ConfigurePlugins(){
-   if [ ! -f "${config_dir}/.pythoneggcache" ]; then
+   if [ ! -d "${config_dir}/.pythoneggcache" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Starting Deluge daemon to install plugins"
       /usr/bin/deluged --config "${config_dir}" --logfile "${log_dir}/daemon.log" --loglevel info
       sleep 10
@@ -275,7 +275,7 @@ Configure(){
          "${config_dir}/core.conf"
    fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Binding WebUI to ${lan_ip}"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Setting web root to /deluge/"
+   #echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Setting web root to /deluge/"
    sed -i \
       -e "s%\"interface\": \".*%\"interface\": \"${lan_ip}\",%" \
       "${config_dir}/web.conf"
@@ -326,72 +326,92 @@ InstallnzbToMedia(){
       chown "${stack_user}":"${deluge_group}" "${nzb2media_base_dir}"
       cd "${nzb2media_base_dir}"
       su "${stack_user}" -c "git clone --quiet --branch master https://github.com/${nzb2media_repo}.git ${nzb2media_base_dir}"
-      if [ ! -f "${nzb2media_base_dir}/autoProcessMedia.cfg" ]; then
-         cp "${nzb2media_base_dir}/autoProcessMedia.cfg.spec" "${nzb2media_base_dir}/autoProcessMedia.cfg"
-      else
-         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Change nzbToMedia default configuration"
-         sed -i \
-            -e "/^\[General\]/,/^\[.*\]/ s%auto_update =.*%auto_update = 1%" \
-            -e "/^\[General\]/,/^\[.*\]/ s%git_path =.*%git_path = /usr/bin/git%" \
-            -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
-            -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
-            -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move-sym%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
-            -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path = *%ffmpeg_path = /usr/local/bin/ffmpeg%" \
-            -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
-            -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move-sym%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeUSR =.*%DelugeUSR = localclient%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePWD =.*%DelugePWD = $(grep ^localclient ${config_dir}/auth | cut -d: -f2)%" \
-            "${nzb2media_base_dir}/autoProcessMedia.cfg"
-         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia download paths"
-         sed -i \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%outputDirectory =.*%outputDirectory = ${other_complete_dir}%" \
-            -e "/^\[Torrent\]/,/^\[.*\]/ s%default_downloadDirectory =.*%default_downloadDirectory = ${other_complete_dir}%" \
-            "${nzb2media_base_dir}/autoProcessMedia.cfg"
-         if [ "${couchpotato_enabled}" ]; then
-            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia CouchPotato settings"
-            sed -i \
-               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
-               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
-               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%host =.*%host = $(hostname -i)%" \
-               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%port =.*%port = 5050%" \
-               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-               -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
-               "${nzb2media_base_dir}/autoProcessMedia.cfg"
-         fi
-         if [ "${sickgear_enabled}" ]; then
-            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia SickGear settings"
-            sed -i \
-               -e "/^\[SickBeard\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
-               -e "/^\[SickBeard\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
-               -e "/^\[SickBeard\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
-               -e "/^\[SickBeard\]/,/^\[.*\]/ s%port =.*%port = 8081%" \
-               -e "/^\[SickBeard\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-               -e "/^\[SickBeard\]/,/^\[.*\]/ s%fork =.*%fork = sickgear%" \
-               -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
-               "${nzb2media_base_dir}/autoProcessMedia.cfg"
-         fi
-         if [ "${headphones_enabled}" ]; then
-            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia Headphones settings"
-            sed -i \
-               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
-               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
-               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%host =.*%host = openvpnpia%" \
-               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%port =.*%port = 8181%" \
-               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
-               -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /%" \
-               "${nzb2media_base_dir}/autoProcessMedia.cfg"
-         fi
-      fi
+   fi
+   if [ ! -f "${nzb2media_base_dir}/autoProcessMedia.cfg" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Creating autoProcessMedia.cfg file from default"
+      cp "${nzb2media_base_dir}/autoProcessMedia.cfg.spec" "${nzb2media_base_dir}/autoProcessMedia.cfg"
+   fi
+}
+
+ConfigurenzbToMedia(){
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia general settings"
+   sed -i \
+      -e "/^\[General\]/,/^\[.*\]/ s%auto_update =.*%auto_update = 1%" \
+      -e "/^\[General\]/,/^\[.*\]/ s%git_path =.*%git_path = /usr/bin/git%" \
+      -e "/^\[General\]/,/^\[.*\]/ s%safe_mode =.*%safe_mode = 1%" \
+      -e "/^\[General\]/,/^\[.*\]/ s%no_extract_failed =.*%no_extract_failed = 1%" \
+      -e "/^\[General\]/,/^\[.*\]/ s%ffmpeg_path.*%ffmpeg_path = /usr/local/bin/ffmpeg%" \
+      -e "/^\[General\]/,/^\[.*\]/ s%git_branch =.*%git_branch = master%" \
+      "${nzb2media_base_dir}/autoProcessMedia.cfg"
+}
+
+N2MDeluge(){
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia Deluge settings"
+   sed -i \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%clientAgent =.*%clientAgent = deluge%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%useLink =.*%useLink = move%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%categories =.*%categories = tv, movie, music%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeHost =.*%DelugeHost = 127.0.0.1%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePort =.*%DelugePort = 58846%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugeUSR =.*%DelugeUSR = localclient%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%DelugePWD =.*%DelugePWD = $(grep ^localclient ${config_dir}/auth | cut -d: -f2)%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%outputDirectory =.*%outputDirectory = ${download_complete_dir}%" \
+      -e "/^\[Torrent\]/,/^\[.*\]/ s%default_downloadDirectory =.*%default_downloadDirectory = ${other_complete_dir}%" \
+      "${nzb2media_base_dir}/autoProcessMedia.cfg"
+}
+
+N2MCouchPotato(){
+   if [ "${couchpotato_enabled}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia CouchPotato settings"
+      sed -i \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
+         -e "/^\[CouchPotato\]/,/###### ADVANCED USE/ s%apikey =.*%apikey = ${global_api_key}%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%host =.*%host = couchpotato%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%port =.*%port = 5050%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /couchpotato%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%minSize =.*%minSize = 3000%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 1%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%delete_ignored =.*%delete_ignored = 1%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%watch_dir =.*%watch_dir = ${movie_complete_dir}%" \
+         "${nzb2media_base_dir}/autoProcessMedia.cfg"
+   fi
+}
+
+N2MSickGear(){
+   if [ "${sickgear_enabled}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia SickGear settings"
+      sed -i \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%host =.*%host = sickgear%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%port =.*%port = 8081%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%fork =.*%fork = sickgear%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /sickgear%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%minSize =.*%minSize = 350%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 1%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%delete_ignored =.*%delete_ignored = 1%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%watch_dir =.*%watch_dir = ${tv_complete_dir}%" \
+         "${nzb2media_base_dir}/autoProcessMedia.cfg"
+   fi
+}
+
+N2MHeadphones(){
+   if [ "${headphones_enabled}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia Headphones settings"
+      sed -i \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%host =.*%host = headphones%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%port =.*%port = 8181%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /headphones%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%minSize =.*%minSize = 10%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 1%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%delete_ignored =.*%delete_ignored = 1%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%watch_dir =.*%watch_dir = ${music_complete_dir}%" \
+         "${nzb2media_base_dir}/autoProcessMedia.cfg"
    fi
 }
 
@@ -431,5 +451,10 @@ EnableSSL
 SetCredentials
 Configure
 InstallnzbToMedia
+ConfigurenzbToMedia
+N2MDeluge
+N2MCouchPotato
+N2MSickGear
+N2MHeadphones
 SetOwnerAndGroup
 LaunchDeluge
