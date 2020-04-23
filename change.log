@@ -1,3 +1,8 @@
+20200423
+
+ - Change: Peer guardian settings now configred on each launch to prevent them accidentally being turned off
+ - Change: Labels were configured to move completed downloads to the appropriate download folder, but weren't enabled for each label type
+
 20200422
 
  - Change: Script now requests a forwarded port from Private Internet Access and forwards it to the Deluge torrent port

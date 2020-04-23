@@ -192,15 +192,13 @@ ConfigurePlugins(){
          -e "s/^\(\"Scheduler\"\)/        \1/" \
          "${config_dir}/web.conf"
    fi
-   if [ "$(grep -c '\"url\": \"\",' "${config_dir}/blocklist.conf")" -eq 1 ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Blocklist plugin"
-      sed -i \
-         -e "s%\"list_type\": .*%\"list_type\": \"SafePeer\",%" \
-         -e "s%\"list_compression\": .*%\"list_compression\": \"GZip\",%" \
-         -e "s%\"load_on_start\": .*%\"load_on_start\": true,%" \
-         -e "s%\"url\": .*%\"url\": \"http://john.bitsurge.net/public/biglist.p2p.gz\",%" \
-         "${config_dir}/blocklist.conf"
-   fi
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Blocklist plugin"
+   sed -i \
+      -e "s%\"list_type\": .*%\"list_type\": \"SafePeer\",%" \
+      -e "s%\"load_on_start\": .*%\"load_on_start\": true,%" \
+      -e "s%\"list_compression\": .*%\"list_compression\": \"GZip\",%" \
+      -e "s%\"url\": .*%\"url\": \"http://john.bitsurge.net/public/biglist.p2p.gz\",%" \
+      "${config_dir}/blocklist.conf"
    if [ "$(grep -c '\"\",' "${config_dir}/execute.conf")" -eq 1 ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Execute plugin"
       sed -i \
@@ -289,12 +287,16 @@ Configure(){
       "${config_dir}/core.conf"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Labels plugin paths: ${movie_complete_dir}, ${music_complete_dir}, ${other_complete_dir} & ${tv_complete_dir}"
    sed -i \
+      -e "/\"movie\": {$/,/},/ s/\"apply_move_completed\": .*/\"apply_move_completed\": true,/" \
       -e "/\"movie\": {$/,/},/ s/\"move_completed\": .*/\"move_completed\": true,/" \
       -e "/\"movie\": {$/,/},/ s%\"move_completed_path\": .*%\"move_completed_path\": \"${movie_complete_dir}\",%" \
+      -e "/\"music\": {$/,/},/ s/\"apply_move_completed\": .*/\"apply_move_completed\": true,/" \
       -e "/\"music\": {$/,/},/ s/\"move_completed\": .*/\"move_completed\": true,/" \
       -e "/\"music\": {$/,/},/ s%\"move_completed_path\": .*%\"move_completed_path\": \"${music_complete_dir}\",%" \
+      -e "/\"other\": {$/,/},/ s/\"apply_move_completed\": .*/\"apply_move_completed\": true,/" \
       -e "/\"other\": {$/,/},/ s/\"move_completed\": .*/\"move_completed\": true,/" \
       -e "/\"other\": {$/,/},/ s%\"move_completed_path\": .*%\"move_completed_path\": \"${other_complete_dir}\",%" \
+      -e "/\"tv\": {$/,/},/ s/\"apply_move_completed\": .*/\"apply_move_completed\": true,/" \
       -e "/\"tv\": {$/,/},/ s/\"move_completed\": .*/\"move_completed\": true,/" \
       -e "/\"tv\": {$/,/},/ s%\"move_completed_path\": .*%\"move_completed_path\": \"${tv_complete_dir}\",%" \
       "${config_dir}/label.conf"
