@@ -207,27 +207,6 @@ ConfigurePlugins(){
    fi
 }
 
-EnableSSL(){
-   if [ ! -d "${config_dir}/https" ]; then
-      mkdir -p "${config_dir}/https"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Initialise HTTPS"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate server key"
-      openssl ecparam -genkey -name secp384r1 -out "${config_dir}/https/deluge.key"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate request"
-      openssl req -new -subj "/C=NA/ST=Global/L=Global/O=Deluge/OU=Deluge/CN=Deluge/" -key "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.csr"
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Generate certificate"
-      openssl x509 -req -sha256 -days 3650 -in "${config_dir}/https/deluge.csr" -signkey "${config_dir}/https/deluge.key" -out "${config_dir}/https/deluge.crt" >/dev/null 2>&1
-   fi
-   if [ -f "${config_dir}/https/deluge.key" ] && [ -f "${config_dir}/https/deluge.crt" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Deluge to use HTTPS"
-      sed -i \
-         -e "s%\"pkey\": \".*%\"pkey\": \"${config_dir}\/https\/deluge.key\",%" \
-         -e "s%\"cert\": \".*%\"cert\": \"${config_dir}\/https\/deluge.crt\",%" \
-         -e "s%\"https\": .*%\"https\": true,%" \
-         "${config_dir}/web.conf"
-   fi
-}
-
 SetCredentials(){
    echo -e "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set daemon username \x27${stack_user}\x27 and password \x27${stack_password}\x27"
    if [ ! -f "${config_dir}/auth" ] || [ "$(grep -c "${stack_user}" "${config_dir}/auth")" = 0 ]; then
@@ -370,7 +349,7 @@ N2MCouchPotato(){
          -e "/^\[CouchPotato\]/,/###### ADVANCED USE/ s%apikey =.*%apikey = ${global_api_key}%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%host =.*%host = couchpotato%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%port =.*%port = 5050%" \
-         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+         -e "/^\[CouchPotato\]/,/^\[.*\]/ s%ssl =.*%ssl = 0%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%web_root =.*%web_root = /couchpotato%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%minSize =.*%minSize = 3000%" \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 0%" \
@@ -388,7 +367,7 @@ N2MSickGear(){
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%host =.*%host = sickgear%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%port =.*%port = 8081%" \
-         -e "/^\[SickBeard\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+         -e "/^\[SickBeard\]/,/^\[.*\]/ s%ssl =.*%ssl = 0%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%fork =.*%fork = sickgear%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%web_root =.*%web_root = /sickgear%" \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%minSize =.*%minSize = 350%" \
@@ -407,7 +386,7 @@ N2MHeadphones(){
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%apikey =.*%apikey = ${global_api_key}%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%host =.*%host = headphones%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%port =.*%port = 8181%" \
-         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 1%" \
+         -e "/^\[HeadPhones\]/,/^\[.*\]/ s%ssl =.*%ssl = 0%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%web_root =.*%web_root = /headphones%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%minSize =.*%minSize = 10%" \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%delete_failed =.*%delete_failed = 0%" \
@@ -449,7 +428,6 @@ CreateLogFiles
 CreateDefaultDaemonConfig
 CreateDefaultWebConfig
 ConfigurePlugins
-EnableSSL
 SetCredentials
 Configure
 InstallnzbToMedia

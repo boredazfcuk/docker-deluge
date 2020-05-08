@@ -1,3 +1,7 @@
+20200508
+
+ - Removal: HTTPS now removed. HTTPS encryption now handled by the NGINX reverse proxy which is part of the stack (boredazfcuk/steve). Container should not be accessible from outside the Docker network, so encrypting traffic to/from NGINX is just unneccesary overhead
+
 20200423
 
  - Change: Peer guardian settings now configred on each launch to prevent them accidentally being turned off
