@@ -37,22 +37,31 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Create user python config" && \
    echo -e "using gcc ;\nusing python : ${python_major_version} : /usr/bin/python${python_major_version} : ${python_includes} : /usr/lib/python${python_major_version} : ;" > ~/user-config.jam && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract boost" && \
    cd "${boost_source}" && \
-   if [ ! -z "${boost_version_override}" ]; then \
+   if [ "${boost_version_override}" ]; then \
+      echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Using boost version ${boost_version_override}"; \
       boost_version="${boost_version_override}"; \
-      boost_latest_file="$(wget -qO- https://dl.bintray.com/boostorg/release/${boost_version}/source/ | grep -v "rc" | grep -Eo '\".*\"' | grep -E '.*\.tar.gz\"' | sed 's/\"//g' | sort -r | head -n 1)"; \
+      boost_latest_file="boost_${boost_version//./_}.tar.gz"; \
    else \
+      echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Searching for latest boost release"; \
       boost_versions="$(wget -qO- https://dl.bintray.com/boostorg/release/ | grep -v "rc" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sort -r | uniq)"; \
       while [ -z "${boost_latest_file}" ]; do \
          boost_version="$(echo "${boost_versions}" | head -n1)"; \
          boost_latest_file="$(wget -qO- https://dl.bintray.com/boostorg/release/${boost_version}/source/ | grep -v "rc" | grep -Eo '\".*\"' | grep -E '.*\.tar.gz\"' | sed 's/\"//g' | sort -r | head -n 1)"; \
          boost_versions="$(echo "${boost_versions}" | sed '1d')"; \
-      done \
+      done; \
+      echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Using boost version ${boost_version}"; \
    fi && \
    boost_root_dir="${boost_source}/boost_${boost_version//./_}" && \
    boost_build_path="${boost_root_dir}/tools/build" && \
-   wget -q "https://dl.bintray.com/boostorg/release/${boost_version}/source/${boost_latest_file}" && \
+   wget "https://dl.bintray.com/boostorg/release/${boost_version}/source/${boost_latest_file}" && \
    tar xvf "${boost_source}/${boost_latest_file}" -C "${boost_source}" && \
-echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Stage boost-build" && \
+echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract ${rasterbar_repo}" && \
+   cd "${libtorrent_source}" && \
+   libtorrent_latest_download_url="$(wget -qO- https://api.github.com/repos/arvidn/libtorrent/releases/latest | grep browser_download_url | grep ".tar" | awk -F'"' '{print $4}')" && \
+   libtorrent_latest_file_name="$(basename "${libtorrent_latest_download_url}")" && \
+   wget "${libtorrent_latest_download_url}" && \
+   tar xvf "${libtorrent_source}/${libtorrent_latest_file_name}" -C "${libtorrent_source}" && \
+echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Stage boost-build in: ${boost_build_path}" && \
    cd "${boost_build_path}" && \
    ./bootstrap.sh && \
    old_path="${PATH}" && \
@@ -61,12 +70,6 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Stage boost-build" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Stage boost libraries" && \
    ./bootstrap.sh --with-python="/usr/bin/python${python_major_version}" --with-icu --with-libraries=chrono,date_time,python,random,system --prefix=/usr && \
    b2 install -j"$(nproc)" -sBOOST_ROOT="${boost_root_dir}" && \
-echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract ${rasterbar_repo}" && \
-   cd "${libtorrent_source}" && \
-   libtorrent_latest_download_url="$(wget -qO- https://api.github.com/repos/arvidn/libtorrent/releases/latest | grep browser_download_url | grep ".tar" | awk -F'"' '{print $4}')" && \
-   libtorrent_latest_file_name="$(basename "${libtorrent_latest_download_url}")" && \
-   wget -q "${libtorrent_latest_download_url}" && \
-   tar xvf "${libtorrent_source}/${libtorrent_latest_file_name}" -C "${libtorrent_source}" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Build and install libtorrent libraries" && \
    cd "${libtorrent_source}/${libtorrent_latest_file_name//\.tar\.gz/}" && \
    ./configure --enable-python-binding --with-libiconv --with-boost-python="boost_python${python_major_version//./}" --prefix=/usr && \
@@ -95,8 +98,8 @@ echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install ${parchive_repo}" && \
    make check && \
    make install && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Clean Up" && \
-   apk del --purge --no-progress build-deps build-libs && \
    pip3 uninstall -y ply slimit && \
+   apk del --purge --no-progress build-deps build-libs && \
    rm -rv /tmp/* ~/user-config.jam && \
    ln -s "/usr/bin/python${python_major_version}" "/usr/bin/python" && \
    PATH="${old_path}"
