@@ -1,3 +1,7 @@
+20200806
+
+ - Change: Added healthcheck condition to check network card presence
+
 20200508
 
  - Removal: HTTPS now removed. HTTPS encryption now handled by the NGINX reverse proxy which is part of the stack (boredazfcuk/steve). Container should not be accessible from outside the Docker network, so encrypting traffic to/from NGINX is just unneccesary overhead
