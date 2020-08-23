@@ -41,6 +41,20 @@ Initialise(){
    deluge_abs_path_watch_dir="${deluge_watch_dir%/}"
 }
 
+CheckOpenVPNPIA(){
+   if [ "${openvpnpia_enabled}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] OpenVPNPIA is enabled. Wait for VPN to connect"
+      vpn_adapter="$(ip addr | grep tun.$ | awk '{print $7}')"
+      while [ -z "${vpn_adapter}" ]; do
+         vpn_adapter="$(ip addr | grep tun.$ | awk '{print $7}')"
+         sleep 5
+      done
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN adapter available: ${vpn_adapter}"
+   else
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] OpenVPNPIA is not enabled"
+   fi
+}
+
 CreateGroup(){
    if [ -z "$(getent group "${deluge_group}" | cut -d: -f3)" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Group ID available, creating group"
@@ -422,6 +436,7 @@ LaunchDeluge(){
 
 ##### Script #####
 Initialise
+CheckOpenVPNPIA
 CreateGroup
 CreateUser
 CreateLogFiles
