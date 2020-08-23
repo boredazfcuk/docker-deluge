@@ -56,22 +56,45 @@ CheckOpenVPNPIA(){
 }
 
 CreateGroup(){
-   if [ -z "$(getent group "${deluge_group}" | cut -d: -f3)" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Group ID available, creating group"
-      addgroup -g "${deluge_group_id}" "${deluge_group}"
-   elif [ ! "$(getent group "${deluge_group}" | cut -d: -f3)" = "${deluge_group_id}" ]; then
-      echo "$(date '+%H:%M:%S') [ERROR   ][deluge.launcher.docker        :${program_id}] Group group_id mismatch - exiting"
-      exit 1
+   if [ "$(grep -c "^${deluge_group}:x:${deluge_group_id}:" "/etc/group")" -eq 1 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Group, ${deluge_group}:${deluge_group_id}, already created"
+   else
+      if [ "$(grep -c "^${deluge_group}:" "/etc/group")" -eq 1 ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Group name, ${deluge_group}, already in use - exiting"
+         sleep 120
+         exit 1
+      elif [ "$(grep -c ":x:${deluge_group_id}:" "/etc/group")" -eq 1 ]; then
+         if [ "${force_gid}" = "True" ]; then
+            group="$(grep ":x:${deluge_group_id}:" /etc/group | awk -F: '{print $1}')"
+            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Group id, ${deluge_group_id}, already exists - continuing as force_gid variable has been set. Group name to use: ${deluge_group}"
+         else
+            echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Group id, ${deluge_group_id}, already in use - exiting"
+            sleep 120
+            exit 1
+         fi
+      else
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Creating group ${deluge_group}:${deluge_group_id}"
+         addgroup -g "${deluge_group_id}" "${deluge_group}"
+      fi
    fi
 }
 
 CreateUser(){
-   if [ -z "$(getent passwd "${stack_user}" | cut -d: -f3)" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User ID available, creating user"
-      adduser -s /bin/ash -D -G "${deluge_group}" -u "${user_id}" "${stack_user}"
-   elif [ ! "$(getent passwd "${stack_user}" | cut -d: -f3)" = "${user_id}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User ID already in use - exiting"
-      exit 1
+   if [ "$(grep -c "^${stack_user}:x:${user_id}:${deluge_group_id}" "/etc/passwd")" -eq 1 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User, ${stack_user}:${user_id}, already created"
+   else
+      if [ "$(grep -c "^${stack_user}:" "/etc/passwd")" -eq 1 ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User name, ${stack_user}, already in use - exiting"
+         sleep 120
+         exit 1
+      elif [ "$(grep -c ":x:${user_id}:$" "/etc/passwd")" -eq 1 ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User id, ${user_id}, already in use - exiting"
+         sleep 120
+         exit 1
+      else
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Creating user ${stack_user}:${user_id}"
+         adduser -s /bin/ash -D -G "${deluge_group}" -u "${user_id}" "${stack_user}" -h "/home/${stack_user}"
+      fi
    fi
 }
 

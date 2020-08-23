@@ -1,5 +1,9 @@
 20200823
 
+ - Change: Rewrote User and Group creation functions to allow use of force_gid to add user to prexisting group
+
+20200823
+
  - Change: Corrected healthcheck missing NIC logic
  - Change: Added startup delay to wait for VPN tunnel adapter
 
