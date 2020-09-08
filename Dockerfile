@@ -110,7 +110,7 @@ COPY plugins/autoadd.conf "${config_dir}/autoadd.conf"
 COPY plugins/execute.conf "${config_dir}/execute.conf"
 COPY plugins/label.conf "${config_dir}/label.conf"
 
-RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script and create python link" && \
+RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on entrypoint and healthcheck scripts" && \
    chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD COMPLETE *****"
 
