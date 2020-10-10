@@ -1,4 +1,6 @@
 FROM alpine:3.10
+# Alpine 3.11 introduces Python 3.8 which breaks functionality with the follwowing error:
+# builtins.TypeError: findCaller() takes from 1 to 2 positional arguments but 3 were given
 MAINTAINER boredazfcuk
 ARG build_dependencies="nano build-base g++ linux-headers autoconf cmake automake py3-pip"
 ARG build_libraries="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev"
@@ -57,7 +59,7 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract boost" && \
    tar xvf "${boost_source}/${boost_latest_file}" -C "${boost_source}" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract ${rasterbar_repo}" && \
    cd "${libtorrent_source}" && \
-   libtorrent_latest_download_url="$(wget -qO- https://api.github.com/repos/arvidn/libtorrent/releases/latest | grep browser_download_url | grep ".tar" | awk -F'"' '{print $4}')" && \
+   libtorrent_latest_download_url="https://github.com/arvidn/libtorrent/releases/download/libtorrent-1.2.10/libtorrent-rasterbar-1.2.10.tar.gz" && \
    libtorrent_latest_file_name="$(basename "${libtorrent_latest_download_url}")" && \
    wget "${libtorrent_latest_download_url}" && \
    tar xvf "${libtorrent_source}/${libtorrent_latest_file_name}" -C "${libtorrent_source}" && \
@@ -110,7 +112,7 @@ COPY plugins/autoadd.conf "${config_dir}/autoadd.conf"
 COPY plugins/execute.conf "${config_dir}/execute.conf"
 COPY plugins/label.conf "${config_dir}/label.conf"
 
-RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on launcher script and create python link" && \
+RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Set permissions on entrypoint and healthcheck scripts" && \
    chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD COMPLETE *****"
 
