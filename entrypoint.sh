@@ -13,9 +13,10 @@ Initialise(){
    nzb2media_repo="clinton-hall/nzbToMedia"
    nzb2media_base_dir="/nzbToMedia"
    lan_ip="$(hostname -i)"
+   default_gateway="$(ip route | grep "^default" | awk '{print $3}')"
    log_dir="${config_dir}/logs"
    if [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    ***** GeoIP Country database does not exist, waiting for it to be created ****"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** GeoIP Country database does not exist, waiting for it to be created ****"
       while [ ! -f "/usr/share/GeoIP/GeoIP.dat" ]; do
          sleep 2
       done
@@ -27,9 +28,11 @@ Initialise(){
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Deluge version: ${deluge_version}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Python version ${python_version}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] libtorrent-rasterbar version: ${libtorrent_version}"
-   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local user: ${stack_user:=stackman}:${user_id:=1000}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local user: ${stack_user:=stackman}:${stack_uid:=1000}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Password: ${stack_password:=Skibidibbydibyodadubdub}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Local group: ${deluge_group:=deluge}:${deluge_group_id:=1000}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] LAN IP Address: ${lan_ip}"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Docker host LAN IP subnet: ${host_lan_ip_subnet}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Movie complete directory: ${movie_complete_dir:=/storage/downloads/complete/movie/}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Music complete directory: ${music_complete_dir:=/storage/downloads/complete/music/}"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] TV complete directory: ${tv_complete_dir:=/storage/downloads/complete/tv/}"
@@ -41,9 +44,9 @@ Initialise(){
    deluge_abs_path_watch_dir="${deluge_watch_dir%/}"
 }
 
-CheckOpenVPNPIA(){
-   if [ "${openvpnpia_enabled}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] OpenVPNPIA is enabled. Wait for VPN to connect"
+CheckPIANextGen(){
+   if [ "${pianextgen_enabled}" ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] PIANextGen is enabled. Wait for VPN to connect"
       vpn_adapter="$(ip addr | grep tun.$ | awk '{print $7}')"
       while [ -z "${vpn_adapter}" ]; do
          vpn_adapter="$(ip addr | grep tun.$ | awk '{print $7}')"
@@ -51,7 +54,14 @@ CheckOpenVPNPIA(){
       done
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN adapter available: ${vpn_adapter}"
    else
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] OpenVPNPIA is not enabled"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] PIANextGen shared network stack is not enabled, configure container forwarding mode mode"
+      pianextgen_host="$(getent hosts pianextgen | awk '{print $1}')"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] PIANextGen container IP address: ${pianextgen_host}"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create default route via ${pianextgen_host}"
+      ip route del default 
+      ip route add default via "${pianextgen_host}"
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Create additional route to Docker host network ${host_lan_ip_subnet} via ${default_gateway}"
+      ip route add "${host_lan_ip_subnet}" via "${default_gateway}"
    fi
 }
 
@@ -80,20 +90,20 @@ CreateGroup(){
 }
 
 CreateUser(){
-   if [ "$(grep -c "^${stack_user}:x:${user_id}:${deluge_group_id}" "/etc/passwd")" -eq 1 ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User, ${stack_user}:${user_id}, already created"
+   if [ "$(grep -c "^${stack_user}:x:${stack_uid}:${deluge_group_id}" "/etc/passwd")" -eq 1 ]; then
+      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User, ${stack_user}:${stack_uid}, already created"
    else
       if [ "$(grep -c "^${stack_user}:" "/etc/passwd")" -eq 1 ]; then
          echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User name, ${stack_user}, already in use - exiting"
          sleep 120
          exit 1
-      elif [ "$(grep -c ":x:${user_id}:$" "/etc/passwd")" -eq 1 ]; then
-         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User id, ${user_id}, already in use - exiting"
+      elif [ "$(grep -c ":x:${stack_uid}:$" "/etc/passwd")" -eq 1 ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] User id, ${stack_uid}, already in use - exiting"
          sleep 120
          exit 1
       else
-         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Creating user ${stack_user}:${user_id}"
-         adduser -s /bin/ash -D -G "${deluge_group}" -u "${user_id}" "${stack_user}" -h "/home/${stack_user}"
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Creating user ${stack_user}:${stack_uid}"
+         adduser -s /bin/ash -D -G "${deluge_group}" -u "${stack_uid}" "${stack_user}" -h "/home/${stack_user}"
       fi
    fi
 }
@@ -142,6 +152,7 @@ CreateDefaultDaemonConfig(){
          -e "/listen_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+$\)/\157700/1" \
          -e "/outgoing_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+,$\)/\158800,/1" \
          -e "/outgoing_ports/,/\s\],$/ s/^\(\s\+\)\([0-9]\+$\)/\159900/1" \
+         -e "s%\"allow_remote\": .*%\"allow_remote\": true,%" \
          -e "s%\"random_outgoing_ports\": .*%\"random_outgoing_ports\": false,%" \
          -e "s%\"random_port\": .*%\"random_port\": false,%" \
          -e "s%\"copy_torrent_file\": .*%\"copy_torrent_file\": true,%" \
@@ -164,7 +175,7 @@ CreateDefaultWebConfig(){
       sleep 2
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ***** Creation of default daemon configuration complete *****"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Reload Deluge launch environment"
-      daemon_user_id="$(grep -A2 hosts "${config_dir}/hostlist.conf" | tail -n1 | tr "[:upper:]" "[:lower:]" | sed 's/[^0-9a-f]*//g')"
+      daemon_stack_uid="$(grep -A2 hosts "${config_dir}/hostlist.conf" | tail -n1 | tr "[:upper:]" "[:lower:]" | sed 's/[^0-9a-f]*//g')"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Set default language to English to suppress error"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Disable first login option"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable web autoconnect to daemon"
@@ -172,7 +183,7 @@ CreateDefaultWebConfig(){
          -e "s%\"language\": \".*%\"language\": \"en_GB\",%" \
          -e "s%\"first_login\": .*%\"first_login\": false,%" \
          -e "s%\"show_session_speed\": .*%\"show_session_speed\": true,%" \
-         -e "s%\"default_daemon\": \".*%\"default_daemon\": \"${daemon_user_id}\",%" \
+         -e "s%\"default_daemon\": \".*%\"default_daemon\": \"${daemon_stack_uid}\",%" \
          "${config_dir}/web.conf"
    fi
 }
@@ -271,22 +282,34 @@ SetCredentials(){
 }
 
 Configure(){
-   vpn_adapter="$(ip addr | grep tun.$ | awk '{print $7}')"
+   vpn_adapter="$(ip -o addr | grep tun. | awk '{print $2}')"
+   lan_adapter="$(ip -o addr | grep eth. | awk '{print $2}')"
    if [ "${vpn_adapter}" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel adapter detected, setting outgoing adapter to ${vpn_adapter}"
       sed -i \
          -e "s/\"outgoing_interface\": .*,/\"outgoing_interface\": \"${vpn_adapter}\",/" \
          "${config_dir}/core.conf"
+      vpn_cidr_ip="$(ip -o addr | grep tun. | awk '{print $4}')"
+      vpn_ip="${vpn_cidr_ip%/*}"
+      if [ "${vpn_ip}" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel IP address detected, setting listening IP to ${vpn_ip}"
+         sed -i \
+            -e "s/\"listen_interface\": .*,/\"listen_interface\": \"${vpn_ip}\",/" \
+            "${config_dir}/core.conf"
+      fi
    else
-      echo "$(date '+%H:%M:%S') [ERROR   ][deluge.launcher.docker        :${program_id}] No VPN adapters present. Private connection not available. Exiting"
-      exit 1
-   fi
-   vpn_ip="$(ip addr | grep tun.$ | awk '{print $2}')"
-   if [ "${vpn_ip}" ]; then
-      echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] VPN tunnel IP address detected, setting listening interface to ${vpn_adapter}"
+      echo "$(date '+%H:%M:%S') [WARNING ][deluge.launcher.docker        :${program_id}] No VPN adapters present. Setting outgoing adapter to ${lan_adapter}."
       sed -i \
-         -e "s/\"listen_interface\": .*,/\"listen_interface\": \"${vpn_ip}\",/" \
+         -e "s/\"outgoing_interface\": .*,/\"outgoing_interface\": \"${lan_adapter}\",/" \
          "${config_dir}/core.conf"
+      lan_cidr_ip="$(ip -o addr | grep eth. | awk '{print $4}')"
+      lan_ip="${lan_cidr_ip%/*}"
+      if [ "${lan_ip}" ]; then
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] No VPN tunnel IP address detected, setting listening IP to ${lan_ip}"
+         sed -i \
+            -e "s/\"listen_interface\": .*,/\"listen_interface\": \"${lan_ip}\",/" \
+            "${config_dir}/core.conf"
+      fi
    fi
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Binding WebUI to ${lan_ip}"
    #echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Setting web root to /deluge/"
@@ -300,6 +323,10 @@ Configure(){
       -e "s%\"download_location\": .*%\"download_location\": \"${deluge_incoming_dir}\",%" \
       -e "s%\"move_completed_path\": .*%\"move_completed_path\": \"${download_complete_dir}\",%" \
       -e "s%\"torrentfiles_location\": .*%\"torrentfiles_location\": \"${deluge_file_backup_dir}\",%" \
+      "${config_dir}/core.conf"
+   echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Enable remote daemon connections"
+   sed -i \
+      -e "s%\"allow_remote\": .*%\"allow_remote\": true,%" \
       "${config_dir}/core.conf"
    echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure Labels plugin paths: ${movie_complete_dir}, ${music_complete_dir}, ${other_complete_dir} & ${tv_complete_dir}"
    sed -i \
@@ -336,14 +363,14 @@ Configure(){
 InstallnzbToMedia(){
    if [ ! -f "${nzb2media_base_dir}/nzbToMedia.py" ]; then
       if [ -d "${nzb2media_base_dir}" ]; then
-         echo "$(date '+%Y-%m-%d %H:%M:%S') INFO:    Cleaning up previously failed installation"
+         echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Cleaning up previously failed installation"
          rm -r "${nzb2media_base_dir}"
       fi
       mkdir -p "${nzb2media_base_dir}"
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] ${nzb2media_repo} not detected, installing..."
       chown "${stack_user}":"${deluge_group}" "${nzb2media_base_dir}"
       cd "${nzb2media_base_dir}"
-      su "${stack_user}" -c "git clone --quiet --branch master https://github.com/${nzb2media_repo}.git ${nzb2media_base_dir}"
+      su "${stack_user}" -c "git clone --quiet --branch master https://github.com/${nzb2media_repo}.git ${nzb2media_base_dir} || exit 1"
    fi
    if [ ! -f "${nzb2media_base_dir}/autoProcessMedia.cfg" ]; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Creating autoProcessMedia.cfg file from default"
@@ -379,7 +406,7 @@ N2MDeluge(){
 }
 
 N2MCouchPotato(){
-   if [ "${couchpotato_enabled}" ]; then
+   if getent hosts couchpotato >/dev/null 2>&1; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia CouchPotato settings"
       sed -i \
          -e "/^\[CouchPotato\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -397,7 +424,7 @@ N2MCouchPotato(){
 }
 
 N2MSickGear(){
-   if [ "${sickgear_enabled}" ]; then
+   if getent hosts sickgear >/dev/null 2>&1; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia SickGear settings"
       sed -i \
          -e "/^\[SickBeard\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -416,7 +443,7 @@ N2MSickGear(){
 }
 
 N2MHeadphones(){
-   if [ "${headphones_enabled}" ]; then
+   if getent hosts headphones >/dev/null 2>&1; then
       echo "$(date '+%H:%M:%S') [INFO    ][deluge.launcher.docker        :${program_id}] Configure nzbToMedia Headphones settings"
       sed -i \
          -e "/^\[HeadPhones\]/,/^\[.*\]/ s%enabled = .*%enabled = 1%" \
@@ -459,7 +486,7 @@ LaunchDeluge(){
 
 ##### Script #####
 Initialise
-CheckOpenVPNPIA
+CheckPIANextGen
 CreateGroup
 CreateUser
 CreateLogFiles

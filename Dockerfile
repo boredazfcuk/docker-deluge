@@ -6,7 +6,7 @@ ARG build_dependencies="nano build-base g++ linux-headers autoconf cmake automak
 ARG build_libraries="musl-dev python3-dev geoip-dev openssl-dev zlib-dev libffi-dev jpeg-dev"
 ARG nzb2media_build_dependencies="python3 git libgomp ffmpeg"
 ARG app_dependencies="tzdata ca-certificates libstdc++ geoip unrar unzip p7zip gettext zlib openssl wget"
-ARG pip_dependencies="geoip bencode ply slimit"
+ARG pip_dependencies="wheel geoip bencode ply slimit twisted rencode pyxdg pillow mako chardet six setproctitle zope.interface>=4.4.2 pyOpenSSL==19.1.0 cryptography==3.1.1"
 ARG nzb2media_repo="clinton-hall/nzbToMedia"
 ARG parchive_repo="Parchive/par2cmdline"
 ARG boost_repo="boostorg/boost"
@@ -19,7 +19,7 @@ ARG deluge_source="/tmp/deluge/source"
 ENV config_dir="/config" \
    PYTHON_EGG_CACHE="/config/.pythoneggcache"
 
-RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD STARTED *****" && \
+RUN echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | ***** BUILD STARTED FOR DELUGE *****" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Create required directories" && \
    mkdir -pv "${boost_source}" "${boost_environment}" "${libtorrent_source}" "${deluge_source}" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install dependencies" && \
@@ -85,7 +85,6 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Build and install libtorrent librari
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Install Deluge" && \
    cd "${deluge_source}" && \
    git clone -b master git://deluge-torrent.org/deluge.git "${deluge_source}" && \
-   pip3 install --no-cache-dir -r requirements.txt && \
    python3 setup.py build && \
    python3 setup.py install && \
 echo "$(date '+%d/%m/%Y - %H:%M:%S') | Install ${parchive_repo}" && \
