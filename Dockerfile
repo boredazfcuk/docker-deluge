@@ -45,17 +45,17 @@ echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract boost" && \
       boost_latest_file="boost_${boost_version//./_}.tar.gz"; \
    else \
       echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Searching for latest boost release"; \
-      boost_versions="$(wget -qO- https://dl.bintray.com/boostorg/release/ | grep -v "rc" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sort -r | uniq)"; \
+      boost_versions="$(wget -qO- https://boostorg.jfrog.io/artifactory/main/release/ | grep -v "rc" | grep -Eo '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sort -r | uniq)"; \
       while [ -z "${boost_latest_file}" ]; do \
          boost_version="$(echo "${boost_versions}" | head -n1)"; \
-         boost_latest_file="$(wget -qO- https://dl.bintray.com/boostorg/release/${boost_version}/source/ | grep -v "rc" | grep -Eo '\".*\"' | grep -E '.*\.tar.gz\"' | sed 's/\"//g' | sort -r | head -n 1)"; \
+         boost_latest_file="$(wget -qO- https://boostorg.jfrog.io/artifactory/main/release/${boost_version}/source/ | grep -v "rc" | grep -Eo '\".*\"' | grep -E '.*\.tar.gz\"' | sed 's/\"//g' | sort -r | head -n 1)"; \
          boost_versions="$(echo "${boost_versions}" | sed '1d')"; \
       done; \
       echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Using boost version ${boost_version}"; \
    fi && \
    boost_root_dir="${boost_source}/boost_${boost_version//./_}" && \
    boost_build_path="${boost_root_dir}/tools/build" && \
-   wget "https://dl.bintray.com/boostorg/release/${boost_version}/source/${boost_latest_file}" && \
+   wget "https://boostorg.jfrog.io/artifactory/main/release/${boost_version}/source/${boost_latest_file}" && \
    tar xvf "${boost_source}/${boost_latest_file}" -C "${boost_source}" && \
 echo -e "\n$(date '+%d/%m/%Y - %H:%M:%S') | Download and extract ${rasterbar_repo}" && \
    cd "${libtorrent_source}" && \

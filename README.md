@@ -44,3 +44,5 @@ This container also requires a bind mount, in which your movies are stored, and 
 ### CREATING A CONTAINER
 
 To create this container, download the docker-compose.yaml for my stack 'steve' and just 'up' it.
+
+Litecoin: LfmogjcqJXHnvqGLTYri5M8BofqqXQttk4
